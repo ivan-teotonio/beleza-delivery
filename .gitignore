@@ -1,0 +1,49 @@
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---------- Editores / IDE ----------
+.idea/
+.vscode/
+*.iml
+*.swp
+*~
+
+# ---------- .NET / API (PLAN §3 - api/) ----------
+bin/
+obj/
+artifacts/
+TestResults/
+*.user
+*.suo
+*.nupkg
+project.lock.json
+
+# ---------- Android / Gradle (PLAN §3 - app/) ----------
+*.apk
+*.aab
+*.ap_
+*.dex
+.gradle/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.jks
+*.keystore
+keystore.properties
+
+# ---------- Segredos e ambiente ----------
+*.env
+.env.*
+!.env.example
+appsettings.Local.json
+secrets.json
+
+# ---------- Logs e cobertura ----------
+*.log
+coverage*.json
+coverage*.xml
+lcov.info
