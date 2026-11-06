@@ -1,0 +1,17 @@
+{
+  "name": "beleza-delivery",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:mobile": "npm --workspace apps/mobile run start",
+    "test": "npm --workspace packages/shared run test",
+    "typecheck": "npm --workspace packages/shared run typecheck && npm --workspace apps/api run typecheck && npm --workspace apps/mobile run typecheck",
+    "lint": "npm --workspace apps/api run lint && npm --workspace apps/mobile run lint"
+  },
+  "packageManager": "npm@10.0.0"
+}
