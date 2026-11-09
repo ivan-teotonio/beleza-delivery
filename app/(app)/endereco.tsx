@@ -145,14 +145,16 @@ export default function Endereco() {
     <Screen
       keyboard
       footer={
-        <Button
-          label="Salvar endereço"
-          onPress={() => void salvar()}
-          loading={salvando}
-          disabled={salvando}
-          icon="save-outline"
-          size="lg"
-        />
+        <View style={styles.rodape}>
+          <Button
+            label="Salvar endereço"
+            onPress={() => void salvar()}
+            loading={salvando}
+            disabled={salvando}
+            icon="save-outline"
+            size="lg"
+          />
+        </View>
       }
     >
       <PageHeader
@@ -235,4 +237,5 @@ export default function Endereco() {
 const styles = StyleSheet.create({
   linhaBotoes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   coords: { gap: 2 },
+  rodape: { marginBottom: -spacing.md },
 });
