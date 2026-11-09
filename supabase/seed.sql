@@ -182,7 +182,6 @@ join (values
   ('joao@beleza.app',    'Corte masculino',      4000, 45),
   ('joao@beleza.app',    'Barba',                3000, 30),
   ('luiza@beleza.app',   'Limpeza de pele',      9000, 60),
-  ('luiza@beleza.app',   'Massagem relaxante',  11000, 60),
   ('paula@beleza.app',   'Corte feminino',       6000, 60),
   ('paula@beleza.app',   'Escova',               5000, 45)
 ) as v(email, tipo, preco, duracao) on v.email = u.email;
