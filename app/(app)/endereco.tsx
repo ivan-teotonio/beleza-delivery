@@ -242,15 +242,17 @@ export default function Endereco() {
         </AppText>
       )}
 
-      <Button
-        label="Salvar endereço"
-        onPress={() => void salvar()}
-        loading={salvando}
-        disabled={salvando}
-        icon="save-outline"
-        size="lg"
-        style={styles.botaoSalvar}
-      />
+      <View style={styles.botaoSalvarContainer}>
+        <Button
+          label="Salvar endereço"
+          onPress={() => void salvar()}
+          loading={salvando}
+          disabled={salvando}
+          icon="save-outline"
+          size="lg"
+          style={styles.botaoSalvar}
+        />
+      </View>
     </Screen>
   );
 }
@@ -263,6 +265,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   coords: { gap: 2 },
+  botaoSalvarContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl + 16, // espaço para barra de navegação do Android
+  },
   botaoSalvar: {
     marginTop: spacing.lg,
     alignSelf: "stretch",
