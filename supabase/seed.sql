@@ -178,7 +178,7 @@ join public.usuario u on u.id = p.usuario_id
 join (values
   ('mariana@beleza.app', 'Manicure',            4500, 60),
   ('mariana@beleza.app', 'Pedicure',            5000, 60),
-  ('mariana@beleza.app', 'Alongamento de unhas',12000,120),
+  ('mariana@beleza.app', 'Maquiagem',           8000, 90),
   ('joao@beleza.app',    'Corte masculino',      4000, 45),
   ('joao@beleza.app',    'Barba',                3000, 30),
   ('luiza@beleza.app',   'Limpeza de pele',      9000, 60),
