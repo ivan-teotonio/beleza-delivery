@@ -1,5 +1,5 @@
 {
-  "name": "belezadelivery",
+  "name": "beleza-delivery",
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
@@ -16,7 +16,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "doctor": "npx --yes expo-doctor"
   },
   "private": true
 }
