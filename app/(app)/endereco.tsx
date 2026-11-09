@@ -1,34 +1,40 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
-import { Screen } from '../../src/components/Screen';
-import { PageHeader } from '../../src/components/PageHeader';
-import { TextField } from '../../src/components/TextField';
-import { Button } from '../../src/components/Button';
-import { Notice } from '../../src/components/Notice';
-import { Card } from '../../src/components/Card';
-import { AppText } from '../../src/components/AppText';
-import { salvarEndereco } from '../../src/lib/api';
-import { buscarCep, localizacaoAtual, resolverCoordenadas } from '../../src/lib/geocode';
-import { formatCep, onlyDigits } from '../../src/lib/format';
-import { mensagemErro } from '../../src/lib/errors';
-import { useNetwork } from '../../src/providers/NetworkProvider';
-import { useSession } from '../../src/providers/SessionProvider';
-import { useToast } from '../../src/providers/ToastProvider';
-import { spacing } from '../../src/theme';
+import React, { useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+import { Screen } from "../../src/components/Screen";
+import { PageHeader } from "../../src/components/PageHeader";
+import { TextField } from "../../src/components/TextField";
+import { Button } from "../../src/components/Button";
+import { Notice } from "../../src/components/Notice";
+import { Card } from "../../src/components/Card";
+import { AppText } from "../../src/components/AppText";
+import { salvarEndereco } from "../../src/lib/api";
+import {
+  buscarCep,
+  localizacaoAtual,
+  resolverCoordenadas,
+} from "../../src/lib/geocode";
+import { formatCep, onlyDigits } from "../../src/lib/format";
+import { mensagemErro } from "../../src/lib/errors";
+import { useNetwork } from "../../src/providers/NetworkProvider";
+import { useSession } from "../../src/providers/SessionProvider";
+import { useToast } from "../../src/providers/ToastProvider";
+import { spacing } from "../../src/theme";
 
 export default function Endereco() {
   const { perfil, recarregarPerfil } = useSession();
   const { online } = useNetwork();
   const { showToast } = useToast();
 
-  const [cep, setCep] = useState('');
-  const [rua, setRua] = useState('');
-  const [numero, setNumero] = useState('');
-  const [complemento, setComplemento] = useState('');
-  const [bairro, setBairro] = useState('');
-  const [cidade, setCidade] = useState('');
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [cep, setCep] = useState("");
+  const [rua, setRua] = useState("");
+  const [numero, setNumero] = useState("");
+  const [complemento, setComplemento] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [localizando, setLocalizando] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -40,7 +46,7 @@ export default function Endereco() {
     setCep(formatCep(endereco.cep));
     setRua(endereco.rua);
     setNumero(endereco.numero);
-    setComplemento(endereco.complemento ?? '');
+    setComplemento(endereco.complemento ?? "");
     setBairro(endereco.bairro);
     setCidade(endereco.cidade);
     if (perfil?.endereco_lat != null && perfil?.endereco_lng != null) {
@@ -51,7 +57,7 @@ export default function Endereco() {
   async function consultarCep() {
     const digitos = onlyDigits(cep);
     if (digitos.length !== 8) {
-      setErro('Informe um CEP com 8 dígitos para consultar.');
+      setErro("Informe um CEP com 8 dígitos para consultar.");
       return;
     }
     setErro(null);
@@ -65,7 +71,7 @@ export default function Endereco() {
       if (dados.lat != null && dados.lng != null) {
         setCoords({ lat: dados.lat, lng: dados.lng });
       }
-      showToast('CEP encontrado. Confira os dados antes de salvar.');
+      showToast("CEP encontrado. Confira os dados antes de salvar.");
     } catch (e) {
       setErro(mensagemErro(e));
     } finally {
@@ -79,7 +85,7 @@ export default function Endereco() {
     try {
       const local = await localizacaoAtual();
       setCoords({ lat: local.lat, lng: local.lng });
-      showToast('Localização atual capturada.');
+      showToast("Localização atual capturada.");
     } catch (e) {
       setErro(mensagemErro(e));
     } finally {
@@ -88,11 +94,11 @@ export default function Endereco() {
   }
 
   function validar(): string | null {
-    if (onlyDigits(cep).length !== 8) return 'Informe um CEP válido.';
-    if (rua.trim().length < 2) return 'Informe a rua.';
-    if (numero.trim().length < 1) return 'Informe o número.';
-    if (bairro.trim().length < 2) return 'Informe o bairro.';
-    if (cidade.trim().length < 2) return 'Informe a cidade.';
+    if (onlyDigits(cep).length !== 8) return "Informe um CEP válido.";
+    if (rua.trim().length < 2) return "Informe a rua.";
+    if (numero.trim().length < 1) return "Informe o número.";
+    if (bairro.trim().length < 2) return "Informe o bairro.";
+    if (cidade.trim().length < 2) return "Informe a cidade.";
     return null;
   }
 
@@ -104,7 +110,7 @@ export default function Endereco() {
       return;
     }
     if (!online) {
-      setErro('Conecte-se à internet para salvar seu endereço.');
+      setErro("Conecte-se à internet para salvar seu endereço.");
       return;
     }
 
@@ -132,7 +138,7 @@ export default function Endereco() {
         lng: local.lng,
       });
       await recarregarPerfil();
-      showToast('Endereço salvo com sucesso.');
+      showToast("Endereço salvo com sucesso.");
       router.back();
     } catch (e) {
       setErro(mensagemErro(e));
@@ -142,21 +148,7 @@ export default function Endereco() {
   }
 
   return (
-    <Screen
-      keyboard
-      footer={
-        <View style={styles.rodape}>
-          <Button
-            label="Salvar endereço"
-            onPress={() => void salvar()}
-            loading={salvando}
-            disabled={salvando}
-            icon="save-outline"
-            size="lg"
-          />
-        </View>
-      }
-    >
+    <Screen keyboard>
       <PageHeader
         title="Meu endereço"
         subtitle="Usado para calcular distância, deslocamento e atendimento"
@@ -181,7 +173,7 @@ export default function Endereco() {
       />
       <View style={styles.linhaBotoes}>
         <Button
-          label={buscandoCep ? 'Consultando...' : 'Consultar CEP'}
+          label={buscandoCep ? "Consultando..." : "Consultar CEP"}
           onPress={() => void consultarCep()}
           variant="secondary"
           icon="search-outline"
@@ -190,7 +182,7 @@ export default function Endereco() {
           fullWidth={false}
         />
         <Button
-          label={localizando ? 'Localizando...' : 'Usar localização atual'}
+          label={localizando ? "Localizando..." : "Usar localização atual"}
           onPress={() => void usarLocalizacao()}
           variant="outline"
           icon="navigate-outline"
@@ -200,7 +192,13 @@ export default function Endereco() {
         />
       </View>
 
-      <TextField label="Rua" required value={rua} onChangeText={setRua} placeholder="Nome da rua" />
+      <TextField
+        label="Rua"
+        required
+        value={rua}
+        onChangeText={setRua}
+        placeholder="Nome da rua"
+      />
       <TextField
         label="Número"
         required
@@ -215,8 +213,20 @@ export default function Endereco() {
         onChangeText={setComplemento}
         placeholder="Apto, bloco, referência"
       />
-      <TextField label="Bairro" required value={bairro} onChangeText={setBairro} placeholder="Bairro" />
-      <TextField label="Cidade" required value={cidade} onChangeText={setCidade} placeholder="Cidade" />
+      <TextField
+        label="Bairro"
+        required
+        value={bairro}
+        onChangeText={setBairro}
+        placeholder="Bairro"
+      />
+      <TextField
+        label="Cidade"
+        required
+        value={cidade}
+        onChangeText={setCidade}
+        placeholder="Cidade"
+      />
 
       {coords ? (
         <Card style={styles.coords}>
@@ -227,15 +237,34 @@ export default function Endereco() {
         </Card>
       ) : (
         <AppText variant="caption">
-          Se o CEP não trouxer coordenadas, usaremos sua localização atual ou geocodificação ao salvar.
+          Se o CEP não trouxer coordenadas, usaremos sua localização atual ou
+          geocodificação ao salvar.
         </AppText>
       )}
+
+      <Button
+        label="Salvar endereço"
+        onPress={() => void salvar()}
+        loading={salvando}
+        disabled={salvando}
+        icon="save-outline"
+        size="lg"
+        style={styles.botaoSalvar}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  linhaBotoes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  linhaBotoes: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
   coords: { gap: 2 },
-  rodape: { marginBottom: -spacing.md },
+  botaoSalvar: {
+    marginTop: spacing.lg,
+    alignSelf: "stretch",
+  },
 });
