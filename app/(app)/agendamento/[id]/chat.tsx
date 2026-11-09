@@ -43,7 +43,7 @@ export default function ChatAgendamento() {
   const { versaoSync } = useSync();
   const { showToast } = useToast();
   const meuId = perfil?.usuario?.id ?? '';
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<any>(null);
 
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -246,8 +246,6 @@ export default function ChatAgendamento() {
               accessibilityLabel="Enviar mensagem"
               onPress={() => void enviar()}
               disabled={!texto.trim() || enviando}
-              loading={enviando}
-              variant="primary"
               style={styles.enviar}
             />
           </View>

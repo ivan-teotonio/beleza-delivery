@@ -1,25 +1,62 @@
 {
   "expo": {
-    "name": "belezaDelivery",
+    "name": "Beleza a Domicílio",
     "slug": "beleza-delivery",
+    "scheme": "beleza-delivery",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.belezadelivery.app"
     },
     "android": {
+      "package": "com.belezadelivery.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F6E8EF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "POST_NOTIFICATIONS"
+      ]
     },
     "web": {
+      "bundler": "metro",
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Usamos sua localização para encontrar profissionais de beleza próximos e calcular o deslocamento."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Precisamos acessar suas fotos para você enviar imagens do portfólio.",
+          "cameraPermission": "Precisamos da câmera para você fotografar seus trabalhos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#6B2148"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {}
     }
   }
 }
