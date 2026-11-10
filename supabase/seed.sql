@@ -143,7 +143,7 @@ join (values
    -46.6790, -23.5850, 'Itaim Bibi', 'São Paulo', 25::numeric,
    'Esteticista com foco em limpeza de pele e massagens relaxantes.'),
   ('paula@beleza.app', 'Paula Nunes', '44444444444', '11977770004',
-   'https://picsum.photos/seed/paula/600/600', 'pendente',
+   'https://picsum.photos/seed/paula/600/600', 'aprovado',
    -46.6800, -23.5350, 'Perdizes', 'São Paulo', 15::numeric,
    'Cabeleireira com atendimento a domicílio para cortes e escovas.')
 ) as v(email, nome, cpf, telefone, foto, status, lng, lat, bairro, cidade, distancia, descricao)
