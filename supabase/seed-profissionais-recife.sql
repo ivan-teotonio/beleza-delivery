@@ -129,9 +129,7 @@ union all
 select p.id, 15::numeric, 3000, 3 from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'carla@prof-teste.app';
 
 insert into public.servico (profissional_id, tipo, preco_centavos, duracao_min, ativo)
-select p.id, 'Corte feminino', 5500, 60, true from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'carla@prof-teste.app'
-union all
-select p.id, 'Escova', 4500, 45, true from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'carla@prof-teste.app';
+select p.id, 'Corte feminino', 5500, 60, true from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'carla@prof-teste.app';
 
 insert into public.foto_portfolio (profissional_id, url)
 select p.id, 'https://picsum.photos/seed/carla-work-1/800/800' from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'carla@prof-teste.app'
@@ -182,10 +180,7 @@ select p.id, 15::numeric, 2200, 2 from public.profissional p join public.usuario
 union all
 select p.id, 20::numeric, 3500, 3 from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'daniela@prof-teste.app';
 
-insert into public.servico (profissional_id, tipo, preco_centavos, duracao_min, ativo)
-select p.id, 'Limpeza de pele', 8000, 60, true from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'daniela@prof-teste.app'
-union all
-select p.id, 'Drenagem linfática', 12000, 90, true from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'daniela@prof-teste.app';
+
 
 insert into public.foto_portfolio (profissional_id, url)
 select p.id, 'https://picsum.photos/seed/daniela-work-1/800/800' from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'daniela@prof-teste.app'
@@ -237,9 +232,7 @@ union all
 select p.id, 25::numeric, 4000, 3 from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'eliana@prof-teste.app';
 
 insert into public.servico (profissional_id, tipo, preco_centavos, duracao_min, ativo)
-select p.id, 'Maquiagem', 7000, 90, true from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'eliana@prof-teste.app'
-union all
-select p.id, 'Maquiagem para noiva', 15000, 120, true from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'eliana@prof-teste.app';
+select p.id, 'Maquiagem', 7000, 90, true from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'eliana@prof-teste.app';
 
 insert into public.foto_portfolio (profissional_id, url)
 select p.id, 'https://picsum.photos/seed/eliana-work-1/800/800' from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'eliana@prof-teste.app'
@@ -290,10 +283,7 @@ select p.id, 20::numeric, 2000, 2 from public.profissional p join public.usuario
 union all
 select p.id, 30::numeric, 3200, 3 from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'fernanda@prof-teste.app';
 
-insert into public.servico (profissional_id, tipo, preco_centavos, duracao_min, ativo)
-select p.id, 'Depilação completa', 6000, 60, true from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'fernanda@prof-teste.app'
-union all
-select p.id, 'Depilação parcial', 3500, 30, true from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'fernanda@prof-teste.app';
+
 
 insert into public.foto_portfolio (profissional_id, url)
 select p.id, 'https://picsum.photos/seed/fernanda-work-1/800/800' from public.profissional p join public.usuario u on u.id = p.usuario_id where u.email = 'fernanda@prof-teste.app'
