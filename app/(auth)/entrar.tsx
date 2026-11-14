@@ -30,6 +30,7 @@ export default function Entrar() {
   const senhaRef = useRef<React.ElementRef<typeof TextInput>>(null);
   const { recarregarPerfil } = useSession();
   const { showToast } = useToast();
+  const modoDemo = process.env.EXPO_PUBLIC_ENABLE_DEMO === 'true';
 
   async function acessar(entrarEmail = email, entrarSenha = senha) {
     setErro(null);
@@ -61,8 +62,9 @@ export default function Entrar() {
   }
 
   function preencher(contaEmail: string) {
+    if (!modoDemo) return;
     setEmail(contaEmail);
-    setSenha('Beleza@123');
+    setSenha('');
     setErro(null);
   }
 
@@ -153,30 +155,34 @@ export default function Entrar() {
         />
       </View>
 
-      <Notice
-        tone="info"
-        title="Contas de demonstração"
-        message="Toque em uma conta para preencher o e-mail e a senha padrão (Beleza@123)."
-        style={styles.aviso}
-      />
-      <View style={styles.demoLinha}>
-        {CONTAS_DEMO.map((conta) => (
-          <Pressable
-            key={conta.email}
-            onPress={() => preencher(conta.email)}
-            accessibilityRole="button"
-            accessibilityLabel={`Preencher conta demo ${conta.rotulo}`}
-            style={({ pressed }) => [styles.demo, pressed && { opacity: 0.8 }]}
-          >
-            <AppText variant="label" color={colors.primary}>
-              {conta.rotulo}
-            </AppText>
-            <AppText variant="caption" numberOfLines={1}>
-              {conta.email}
-            </AppText>
-          </Pressable>
-        ))}
-      </View>
+      {modoDemo ? (
+        <>
+          <Notice
+            tone="info"
+            title="Contas de demonstração"
+            message="Toque em uma conta para preencher o e-mail."
+            style={styles.aviso}
+          />
+          <View style={styles.demoLinha}>
+            {CONTAS_DEMO.map((conta) => (
+              <Pressable
+                key={conta.email}
+                onPress={() => preencher(conta.email)}
+                accessibilityRole="button"
+                accessibilityLabel={`Preencher conta demo ${conta.rotulo}`}
+                style={({ pressed }) => [styles.demo, pressed && { opacity: 0.8 }]}
+              >
+                <AppText variant="label" color={colors.primary}>
+                  {conta.rotulo}
+                </AppText>
+                <AppText variant="caption" numberOfLines={1}>
+                  {conta.email}
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      ) : null}
     </Screen>
   );
 }

@@ -5,7 +5,7 @@ import * as SecureStore from 'expo-secure-store';
  * Adaptador de storage para o Supabase Auth.
  *
  * O SecureStore tem limite de tamanho por item; a sessão JWT pode ultrapassar.
- * Por isso o valor é dividido em blocos. Na web, usamos localStorage.
+ * Por isso o valor é dividido em blocos. Na web, usamos sessionStorage.
  * Em ambientes sem SecureStore (ex.: Expo Go), falhas são ignoradas e a
  * sessão fica apenas em memória.
  */
@@ -15,16 +15,16 @@ const COUNT_SUFFIX = '.__n';
 
 const webStorage = {
   async getItem(key: string) {
-    if (typeof localStorage === 'undefined') return null;
-    return localStorage.getItem(key);
+    if (typeof sessionStorage === 'undefined') return null;
+    return sessionStorage.getItem(key);
   },
   async setItem(key: string, value: string) {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(key, value);
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.setItem(key, value);
   },
   async removeItem(key: string) {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.removeItem(key);
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.removeItem(key);
   },
 };
 

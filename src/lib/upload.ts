@@ -37,6 +37,30 @@ export async function comprimirImagem(
   return resultado.uri;
 }
 
+function detectarTipoImagem(bytes: ArrayBuffer): { tipo: string; extensao: string } {
+  const view = new Uint8Array(bytes);
+  const magic = [view[0], view[1], view[2], view[3]];
+
+  // JPEG: FF D8 FF
+  if (magic[0] === 0xff && magic[1] === 0xd8 && magic[2] === 0xff) {
+    return { tipo: 'image/jpeg', extensao: 'jpg' };
+  }
+
+  // PNG: 89 50 4E 47
+  if (
+    magic[0] === 0x89 &&
+    magic[1] === 0x50 &&
+    magic[2] === 0x4e &&
+    magic[3] === 0x47
+  ) {
+    return { tipo: 'image/png', extensao: 'png' };
+  }
+
+  throw new AppError(
+    'Arquivo não é uma imagem JPEG ou PNG válida. Selecione outra foto.',
+  );
+}
+
 export async function enviarImagem(
   bucket: BucketImagem,
   caminho: string,
@@ -45,8 +69,10 @@ export async function enviarImagem(
   try {
     const arquivo = new File(uri);
     const bytes = await arquivo.arrayBuffer();
+    const { tipo, extensao } = detectarTipoImagem(bytes);
+
     const { error } = await supabase.storage.from(bucket).upload(caminho, bytes, {
-      contentType: 'image/jpeg',
+      contentType: tipo,
       upsert: false,
       cacheControl: '3600',
     });

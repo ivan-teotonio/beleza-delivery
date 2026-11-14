@@ -17,10 +17,11 @@ export function ProfissionalCard({
   profissional: ResultadoBusca;
   onPress: () => void;
 }) {
-  const menorPreco = profissional.servicos.length
-    ? Math.min(...profissional.servicos.map((s) => s.preco_centavos))
+  const servicos = profissional.servicos ?? [];
+  const menorPreco = servicos.length
+    ? Math.min(...servicos.map((s) => s.preco_centavos))
     : null;
-  const tipos = profissional.servicos.map((s) => s.tipo);
+  const tipos = servicos.map((s) => s.tipo);
   const rotulo = [
     profissional.nome,
     `nota ${Number(profissional.media_avaliacao).toFixed(1)}`,
@@ -58,8 +59,8 @@ export function ProfissionalCard({
 
       {tipos.length > 0 ? (
         <View style={styles.tags}>
-          {tipos.slice(0, 3).map((tipo) => (
-            <View key={tipo} style={styles.tag}>
+          {tipos.slice(0, 3).map((tipo, i) => (
+            <View key={`${tipo}-${i}`} style={styles.tag}>
               <AppText variant="caption" color={colors.primaryDark} numberOfLines={1}>
                 {tipo}
               </AppText>
