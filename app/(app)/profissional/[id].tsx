@@ -44,7 +44,7 @@ import { useSession } from '../../../src/providers/SessionProvider';
 import { useToast } from '../../../src/providers/ToastProvider';
 import type { AgendaSlot, PreviaAgendamento } from '../../../src/lib/types';
 import { colors, radius, spacing } from '../../../src/theme';
-import fotoExemploPortfolio from '../../../../assets/img1.jpeg';
+import fotoExemploPortfolio from '../../../assets/img1.jpeg';
 
 const DIAS = 14;
 
