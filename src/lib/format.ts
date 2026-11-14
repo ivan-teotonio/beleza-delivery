@@ -2,16 +2,15 @@
  * Formatação de dinheiro, datas e textos.
  *
  * Datas de negócio estão em UTC (timestamptz) e são exibidas no fuso de
- * São Paulo (UTC-3, sem horário de verão desde 2019). O fallback manual evita
- * dependência de ICU completo no Hermes.
+ * São Paulo (UTC-3, sem horário de verão desde 2019). Todas as funções de
+ * data usam Intl.DateTimeFormat com timeZone America/Sao_Paulo para garantir
+ * o dia/hora correto independentemente do fuso do dispositivo.
  */
-
-const TZ_OFFSET_MS = -3 * 60 * 60 * 1000;
 
 export function formatBRL(centavos: number | null | undefined): string {
   const valor = Number.isFinite(centavos) ? Number(centavos) : 0;
   const negativo = valor < 0;
-  const absoluto = Math.abs(Math.round(valor));
+  const absoluto = Math.abs(Math.round(centavos ?? 0));
   const inteiro = Math.floor(absoluto / 100)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -59,49 +58,88 @@ export function centsToInput(centavos: number): string {
   return (Math.round(centavos) / 100).toFixed(2).replace('.', ',');
 }
 
-function shifted(date: Date): Date {
-  return new Date(date.getTime() + TZ_OFFSET_MS);
-}
-
 function asDate(value: string | Date): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
-export function dayKeySP(value: string | Date): string {
-  const d = asDate(value);
-  // Se for a data atual (sem horário específico), usa Intl para garantir o fuso de São Paulo
-  if (value instanceof Date || typeof value === 'string') {
-    const isToday = !value.toString().includes('T') && typeof value === 'string';
-    if (isToday || value instanceof Date) {
-      try {
-        return new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'America/Sao_Paulo',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        }).format(d);
-      } catch {
-        // fallback abaixo
-      }
-    }
+/**
+ * Formata uma data no fuso de São Paulo usando Intl.DateTimeFormat.
+ * Retorna as partes separadamente para evitar problemas de fuso.
+ */
+function spParts(date: Date): { y: number; m: number; d: number; h: number; min: number; weekday: number; month: number } {
+  const df = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    weekday: 'short',
+  });
+  const parts = df.formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return {
+    y: Number(get('year')),
+    m: Number(get('month')),
+    d: Number(get('day')),
+    h: Number(get('hour')),
+    min: Number(get('minute')),
+    weekday: ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'].indexOf(get('weekday')),
+    month: Number(get('month')),
+  };
+}
+
+/** Retorna a data (YYYY-MM-DD) de hoje em São Paulo. */
+export function hojeSP(): string {
+  try {
+    const p = spParts(new Date());
+    return `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+  } catch {
+    // Fallback: calcula via UTC assumindo São Paulo em UTC-3
+    const now = new Date();
+    const spMs = now.getTime() - 3 * 60 * 60 * 1000;
+    const d = new Date(spMs);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
-  const sd = shifted(d);
-  const y = sd.getUTCFullYear();
-  const m = String(sd.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(sd.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+}
+
+/** Soma dias a uma chave YYYY-MM-DD (sem sofrer com fuso). */
+export function addDaysKey(dayKey: string, days: number): string {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCDate(base.getUTCDate() + days);
+  return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`;
+}
+
+/** Converte uma chave YYYY-MM-DD em um Date no início do dia em São Paulo (UTC-3). */
+export function startOfDaySP(dayKey: string): Date {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 3, 0, 0, 0));
 }
 
 export function formatDate(value: string | Date | null | undefined): string {
   if (!value) return '—';
-  const d = shifted(asDate(value));
-  return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+  try {
+    const p = spParts(asDate(value));
+    return `${String(p.d).padStart(2, '0')}/${String(p.m).padStart(2, '0')}/${p.y}`;
+  } catch {
+    const d = new Date(asDate(value).getTime() - 3 * 60 * 60 * 1000);
+    return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+  }
 }
 
 export function formatTime(value: string | Date | null | undefined): string {
   if (!value) return '—';
-  const d = shifted(asDate(value));
-  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  try {
+    const p = spParts(asDate(value));
+    return `${String(p.h).padStart(2, '0')}:${String(p.min).padStart(2, '0')}`;
+  } catch {
+    const d = new Date(asDate(value).getTime() - 3 * 60 * 60 * 1000);
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  }
 }
 
 export function formatDateTime(value: string | Date | null | undefined): string {
@@ -137,48 +175,47 @@ const MONTHS = [
 ];
 
 export function weekdayShort(value: string | Date): string {
-  return WEEKDAYS_SHORT[shifted(asDate(value)).getUTCDay()];
-}
-
-export function formatDayLong(value: string | Date): string {
-  const d = shifted(asDate(value));
-  return `${WEEKDAYS[d.getUTCDay()]}, ${d.getUTCDate()} de ${MONTHS[d.getUTCMonth()]}`;
-}
-
-export function formatDayShort(value: string | Date): string {
-  const d = shifted(asDate(value));
-  return `${WEEKDAYS_SHORT[d.getUTCDay()]}, ${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-}
-
-export function monthShort(value: string | Date): string {
-  const d = shifted(asDate(value));
-  return MONTHS[d.getUTCMonth()].slice(0, 3);
-}
-
-/** Retorna a data (YYYY-MM-DD) de hoje em São Paulo. */
-export function hojeSP(): string {
   try {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Sao_Paulo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date());
+    const p = spParts(asDate(value));
+    return WEEKDAYS_SHORT[p.weekday];
   } catch {
-    return dayKeySP(new Date());
+    const d = new Date(asDate(value).getTime() - 3 * 60 * 60 * 1000);
+    return WEEKDAYS_SHORT[d.getUTCDay()];
   }
 }
 
-/** Soma dias a uma chave YYYY-MM-DD (sem sofrer com fuso). */
-export function addDaysKey(dayKey: string, days: number): string {
-  const [y, m, d] = dayKey.split('-').map(Number);
-  const base = new Date(Date.UTC(y, m - 1, d));
-  base.setUTCDate(base.getUTCDate() + days);
-  return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`;
+export function formatDayLong(value: string | Date): string {
+  try {
+    const p = spParts(asDate(value));
+    return `${WEEKDAYS[p.weekday]}, ${p.d} de ${MONTHS[p.month - 1]}`;
+  } catch {
+    const d = new Date(asDate(value).getTime() - 3 * 60 * 60 * 1000);
+    return `${WEEKDAYS[d.getUTCDay()]}, ${d.getUTCDate()} de ${MONTHS[d.getUTCMonth()]}`;
+  }
 }
 
-/** Converte uma chave YYYY-MM-DD em um Date no início do dia em São Paulo (UTC). */
-export function startOfDaySP(dayKey: string): Date {
+export function formatDayShort(value: string | Date): string {
+  try {
+    const p = spParts(asDate(value));
+    return `${WEEKDAYS_SHORT[p.weekday]}, ${String(p.d).padStart(2, '0')}/${String(p.m).padStart(2, '0')}`;
+  } catch {
+    const d = new Date(asDate(value).getTime() - 3 * 60 * 60 * 1000);
+    return `${WEEKDAYS_SHORT[d.getUTCDay()]}, ${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+}
+
+export function monthShort(value: string | Date): string {
+  try {
+    const p = spParts(asDate(value));
+    return MONTHS[p.month - 1].slice(0, 3);
+  } catch {
+    const d = new Date(asDate(value).getTime() - 3 * 60 * 60 * 1000);
+    return MONTHS[d.getUTCMonth()].slice(0, 3);
+  }
+}
+
+/** Converte uma chave YYYY-MM-DD em um Date no início do dia em São Paulo (UTC-3). */
+export function startOfDaySPFromKey(dayKey: string): Date {
   const [y, m, d] = dayKey.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d, 3, 0, 0, 0));
 }
