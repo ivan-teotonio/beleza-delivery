@@ -58,42 +58,51 @@ export function centsToInput(centavos: number): string {
   return (Math.round(centavos) / 100).toFixed(2).replace('.', ',');
 }
 
-function asDate(value: string | Date): Date {
-  return value instanceof Date ? value : new Date(value);
+const SP_TZ = 'America/Sao_Paulo';
+
+function spFormat(
+  date: Date,
+  opts: Intl.DateTimeFormatOptions,
+): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: SP_TZ, ...opts }).format(
+    date,
+  );
 }
 
-/**
- * Formata uma data no fuso de São Paulo usando Intl.DateTimeFormat.
- * Retorna as partes separadamente para evitar problemas de fuso.
- */
-function spParts(date: Date): { y: number; m: number; d: number; h: number; min: number; weekday: number; month: number } {
-  const df = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
+function spParts(date: Date): {
+  y: number;
+  m: number;
+  d: number;
+  h: number;
+  min: number;
+  weekday: number;
+  month: number;
+} {
+  const y = Number(spFormat(date, { year: 'numeric' }));
+  const m = Number(spFormat(date, { month: '2-digit' }));
+  const d = Number(spFormat(date, { day: '2-digit' }));
+  const h = Number(spFormat(date, { hour: '2-digit', hour12: false }));
+  const min = Number(spFormat(date, { minute: '2-digit' }));
+  // weekday em pt-BR para mapear para o array em português
+  const wd = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: SP_TZ,
     weekday: 'short',
-  });
-  const parts = df.formatToParts(date);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-  return {
-    y: Number(get('year')),
-    m: Number(get('month')),
-    d: Number(get('day')),
-    h: Number(get('hour')),
-    min: Number(get('minute')),
-    weekday: ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'].indexOf(get('weekday')),
-    month: Number(get('month')),
+  }).format(date);
+  const weekdayMap: Record<string, number> = {
+    dom: 0, seg: 1, ter: 2, qua: 3, qui: 4, sex: 5, sáb: 6,
   };
+  const weekday = weekdayMap[wd] ?? 0;
+  return { y, m, d, h, min, weekday, month: m };
 }
 
 /** Retorna a data (YYYY-MM-DD) de hoje em São Paulo. */
 export function hojeSP(): string {
   try {
-    const p = spParts(new Date());
-    return `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+    return spFormat(new Date(), {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
   } catch {
     // Fallback: calcula via UTC assumindo São Paulo em UTC-3
     const now = new Date();
@@ -218,6 +227,10 @@ export function monthShort(value: string | Date): string {
 export function startOfDaySPFromKey(dayKey: string): Date {
   const [y, m, d] = dayKey.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d, 3, 0, 0, 0));
+}
+
+function asDate(value: string | Date): Date {
+  return value instanceof Date ? value : new Date(value);
 }
 
 export function horasAte(value: string | Date): number {
