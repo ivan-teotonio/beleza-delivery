@@ -98,13 +98,13 @@ function spParts(date: Date): {
 /** Retorna a data (YYYY-MM-DD) de hoje em São Paulo. */
 export function hojeSP(): string {
   try {
-    return spFormat(new Date(), {
+    return new Date().toLocaleDateString('en-CA', {
+      timeZone: 'America/Sao_Paulo',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
     });
   } catch {
-    // Fallback: calcula via UTC assumindo São Paulo em UTC-3
     const now = new Date();
     const spMs = now.getTime() - 3 * 60 * 60 * 1000;
     const d = new Date(spMs);
