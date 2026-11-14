@@ -51,9 +51,19 @@ export default function Agenda() {
 
   const hoje = hojeSP();
   const dias = useMemo(
-    () => Array.from({ length: DIAS }, (_, i) => addDaysKey(hoje, i)).filter((d) => d >= hoje),
+    () =>
+      Array.from({ length: DIAS }, (_, i) => addDaysKey(hoje, i)).filter(
+        (d) => d >= hoje,
+      ),
     [hoje],
   );
+
+  // Garante que o dia selecionado nunca seja anterior a hoje
+  React.useEffect(() => {
+    if (dia < hoje) {
+      setDia(hoje);
+    }
+  }, [dia, hoje]);
 
   const consulta = useQuery(
     `agenda:${profissionalId ?? 'sem'}:${dia}`,
