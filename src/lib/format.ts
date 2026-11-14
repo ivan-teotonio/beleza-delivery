@@ -68,10 +68,27 @@ function asDate(value: string | Date): Date {
 }
 
 export function dayKeySP(value: string | Date): string {
-  const d = shifted(asDate(value));
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
+  const d = asDate(value);
+  // Se for a data atual (sem horário específico), usa Intl para garantir o fuso de São Paulo
+  if (value instanceof Date || typeof value === 'string') {
+    const isToday = !value.toString().includes('T') && typeof value === 'string';
+    if (isToday || value instanceof Date) {
+      try {
+        return new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Sao_Paulo',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(d);
+      } catch {
+        // fallback abaixo
+      }
+    }
+  }
+  const sd = shifted(d);
+  const y = sd.getUTCFullYear();
+  const m = String(sd.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(sd.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
