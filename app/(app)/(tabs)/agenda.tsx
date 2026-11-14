@@ -49,7 +49,11 @@ export default function Agenda() {
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState<AgendaSlot | null>(null);
 
-  const dias = useMemo(() => Array.from({ length: DIAS }, (_, i) => addDaysKey(hojeSP(), i)), []);
+  const hoje = hojeSP();
+  const dias = useMemo(
+    () => Array.from({ length: DIAS }, (_, i) => addDaysKey(hoje, i)).filter((d) => d >= hoje),
+    [hoje],
+  );
 
   const consulta = useQuery(
     `agenda:${profissionalId ?? 'sem'}:${dia}`,

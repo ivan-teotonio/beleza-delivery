@@ -140,7 +140,16 @@ export function monthShort(value: string | Date): string {
 
 /** Retorna a data (YYYY-MM-DD) de hoje em São Paulo. */
 export function hojeSP(): string {
-  return dayKeySP(new Date());
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    return dayKeySP(new Date());
+  }
 }
 
 /** Soma dias a uma chave YYYY-MM-DD (sem sofrer com fuso). */
