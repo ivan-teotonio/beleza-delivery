@@ -3,6 +3,7 @@ import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-n
 import { AppText } from './AppText';
 import { iniciais } from '../lib/format';
 import { colors } from '../theme';
+import defaultFoto from '../../assets/img1.jpeg';
 
 export interface AvatarProps {
   nome: string;
@@ -19,20 +20,13 @@ export function Avatar({ nome, uri, size = 56, style }: AvatarProps) {
     <View
       style={[styles.base, dimensoes, style]}
       accessible
-      accessibilityLabel={uri ? `Foto de ${nome}` : `Iniciais de ${nome}`}
+      accessibilityLabel={uri ? `Foto de ${nome}` : `Foto de exemplo de ${nome}`}
     >
-      {uri ? (
-        <Image source={{ uri }} style={dimensoes} resizeMode="cover" />
-      ) : (
-        <AppText
-          variant="bodyStrong"
-          color={colors.primaryDark}
-          style={{ fontSize: tamanhoTexto, lineHeight: tamanhoTexto + 4 }}
-          allowFontScaling={false}
-        >
-          {iniciais(nome)}
-        </AppText>
-      )}
+      <Image
+        source={uri ? { uri } : defaultFoto}
+        style={dimensoes}
+        resizeMode="cover"
+      />
     </View>
   );
 }

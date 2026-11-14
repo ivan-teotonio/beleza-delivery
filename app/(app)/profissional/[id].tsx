@@ -44,6 +44,7 @@ import { useSession } from '../../../src/providers/SessionProvider';
 import { useToast } from '../../../src/providers/ToastProvider';
 import type { AgendaSlot, PreviaAgendamento } from '../../../src/lib/types';
 import { colors, radius, spacing } from '../../../src/theme';
+import fotoExemploPortfolio from '../../../../assets/img1.jpeg';
 
 const DIAS = 14;
 
@@ -282,7 +283,17 @@ export default function ProfissionalDetalhe() {
             ))}
           </ScrollView>
         </>
-      ) : null}
+      ) : (
+        <>
+          <SectionHeader title="Portfólio" subtitle="Trabalhos realizados por este profissional" />
+          <View style={styles.portfolioVazio}>
+            <Image source={fotoExemploPortfolio} style={styles.fotoExemplo} resizeMode="cover" />
+            <AppText variant="caption" color={colors.textMuted} center>
+              Nenhuma foto publicada ainda
+            </AppText>
+          </View>
+        </>
+      )}
 
       <SectionHeader title="Serviços" subtitle="Escolha o serviço desejado" />
       {profissional.servicos.length === 0 ? (
@@ -482,6 +493,14 @@ const styles = StyleSheet.create({
   descricao: { marginTop: spacing.md },
   portfolio: { gap: spacing.sm, paddingBottom: spacing.sm },
   foto: { width: 148, height: 148, borderRadius: radius.md, backgroundColor: colors.surfaceAlt },
+  portfolioVazio: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.lg,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+  },
+  fotoExemplo: { width: 148, height: 148, borderRadius: radius.md },
   servico: {
     flexDirection: 'row',
     alignItems: 'center',
