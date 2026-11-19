@@ -72,7 +72,8 @@ async function chamarFunction<T>(nome: string, corpo: unknown): Promise<T> {
       },
       body: JSON.stringify(corpo),
     });
-  } catch {
+  } catch (erro) {
+    if (__DEV__) console.warn(`[api] fetch falhou (${nome}):`, erro);
     falha(new Error('Sem conexão com o servidor. Verifique sua internet e tente novamente.'));
   }
 
