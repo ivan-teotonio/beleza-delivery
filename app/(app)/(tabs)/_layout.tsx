@@ -20,11 +20,11 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          minHeight: 64,
+          minHeight: 72,
           paddingTop: 6,
-          paddingBottom: 8,
+          paddingBottom: 10,
         },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '700' },
+        tabBarLabelStyle: { fontSize: 13, fontWeight: '700' },
         tabBarItemStyle: { minHeight: 48 },
         sceneStyle: { backgroundColor: colors.bg },
       }}

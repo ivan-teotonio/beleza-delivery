@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '../../../src/components/Screen';
 import { AppText } from '../../../src/components/AppText';
+import { Avatar } from '../../../src/components/Avatar';
 import { TextField } from '../../../src/components/TextField';
 import { SectionHeader } from '../../../src/components/SectionHeader';
 import { Chip, ChipRow } from '../../../src/components/Chip';
@@ -13,10 +14,11 @@ import { EmptyState } from '../../../src/components/EmptyState';
 import { ErrorState } from '../../../src/components/ErrorState';
 import { Loading } from '../../../src/components/Loading';
 import { Button } from '../../../src/components/Button';
+import { TooltipHint } from '../../../src/components/TooltipHint';
 import { ProfissionalCard } from '../../../src/components/ProfissionalCard';
 import { buscarProfissionais, tiposServicoDisponiveis } from '../../../src/lib/api';
 import { localizacaoAtual } from '../../../src/lib/geocode';
-import { primeiroNome } from '../../../src/lib/format';
+import { primeiroNome, formatBRL, formatDistance } from '../../../src/lib/format';
 import { mensagemErro } from '../../../src/lib/errors';
 import { useDebounce } from '../../../src/hooks/useDebounce';
 import { useFocusRefresh } from '../../../src/hooks/useFocusRefresh';
@@ -24,7 +26,8 @@ import { useQuery } from '../../../src/hooks/useQuery';
 import { useNetwork } from '../../../src/providers/NetworkProvider';
 import { useSession } from '../../../src/providers/SessionProvider';
 import { useToast } from '../../../src/providers/ToastProvider';
-import { colors, spacing } from '../../../src/theme';
+import { colors, radius, spacing } from '../../../src/theme';
+import type { ResultadoBusca } from '../../../src/lib/types';
 
 export default function Inicio() {
   const { perfil, perfilLoading } = useSession();
@@ -35,6 +38,17 @@ export default function Inicio() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [buscandoLocal, setBuscandoLocal] = useState(false);
   const buscaAdiada = useDebounce(busca, 400);
+  const [comparados, setComparados] = useState<string[]>([]);
+  const [enderecoAjudaVisto, setEnderecoAjudaVisto] = useState(false);
+  const [visitados, setVisitados] = useState<string[]>([]);
+
+  function marcarVisitado(id: string) {
+    setVisitados((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }
+
+  function toggleCompare(id: string) {
+    setComparados((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
 
   useEffect(() => {
     if (perfil?.endereco_lat != null && perfil?.endereco_lng != null) {
@@ -95,6 +109,52 @@ export default function Inicio() {
         void resultados.refresh();
         void tipos.refresh();
       }}
+      footer={
+        comparados.length > 0 ? (
+          <View style={styles.barraComparar}>
+            <AppText variant="label" style={styles.tituloBarra}>
+              Comparando ({comparados.length})
+            </AppText>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollComparar}>
+              {comparados.map((id) => {
+                const p = resultados.data?.find((x) => x.id === id);
+                if (!p) return null;
+                const menorPreco = p.servicos?.length
+                  ? Math.min(...p.servicos.map((s) => s.preco_centavos))
+                  : null;
+                return (
+                  <View key={id} style={styles.itemComparar}>
+                    <Avatar nome={p.nome} uri={p.foto_url} size={40} />
+                    <View style={styles.infoComparar}>
+                      <AppText variant="caption" numberOfLines={1} style={styles.nomeComparar}>
+                        {p.nome}
+                      </AppText>
+                      <AppText variant="caption" color={colors.textMuted}>
+                        {formatDistance(p.distancia_km)} · {menorPreco !== null ? `a partir de ${formatBRL(menorPreco)}` : '—'}
+                      </AppText>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => toggleCompare(id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remover ${p.nome} da comparação`}
+                      style={styles.removerComparar}
+                    >
+                      <Ionicons name="close-outline" size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </ScrollView>
+            <Button
+              label="Limpar comparação"
+              variant="ghost"
+              onPress={() => setComparados([])}
+              fullWidth={false}
+              style={styles.botaoLimpar}
+            />
+          </View>
+        ) : null
+      }
     >
       <View style={styles.topo}>
         <View style={styles.saudacao}>
@@ -108,6 +168,14 @@ export default function Inicio() {
           <AppText variant="caption" numberOfLines={2} style={styles.localTexto}>
             {enderecoResumo}
           </AppText>
+          {temEndereco ? (
+            <TooltipHint
+              title="Por que o endereço é necessário"
+              message="O endereço é usado para calcular a distância até o profissional e o valor do deslocamento, que fica definido pelo profissional por faixas de distância. Você confere o total antes de confirmar o agendamento."
+              dismissed={enderecoAjudaVisto}
+              onDismiss={() => setEnderecoAjudaVisto(true)}
+            />
+          ) : null}
         </View>
       </View>
 
@@ -189,8 +257,34 @@ export default function Inicio() {
       ) : (
         <>
           {resultados.stale ? <StaleNotice /> : null}
+          {visitados.length > 0 ? (
+            <View>
+              <SectionHeader
+                title="Você já visitou"
+                subtitle="Retome onde parou"
+              />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.linhaVisitados}>
+                {visitados.map((id) => {
+                  const p = resultados.data?.find((x) => x.id === id);
+                  if (!p) return null;
+                  return (
+                    <ProfissionalCard
+                      key={id}
+                      profissional={p}
+                      onPress={() => {
+                        marcarVisitado(p.id);
+                        router.push(
+                          `/profissional/${p.id}?distancia=${encodeURIComponent(String(p.distancia_km))}`,
+                        );
+                      }}
+                    />
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
           <SectionHeader
-            title="Perto de você"
+            title="Profissionais perto de você"
             subtitle={
               resultados.data && resultados.data.length > 0
                 ? `${resultados.data.length} ${resultados.data.length === 1 ? 'profissional encontrado' : 'profissionais encontrados'}`
@@ -202,32 +296,64 @@ export default function Inicio() {
           />
 
           {resultados.data && resultados.data.length > 0 ? (
-            resultados.data.map((profissional) => (
-              <ProfissionalCard
-                key={profissional.id}
-                profissional={profissional}
-                onPress={() =>
-                  router.push(
-                    `/profissional/${profissional.id}?distancia=${encodeURIComponent(String(profissional.distancia_km))}`,
-                  )
-                }
-              />
-            ))
+            resultados.data.map((profissional) => {
+              const estaComparado = comparados.includes(profissional.id);
+              const limiteAtingido = comparados.length >= 3 && !estaComparado;
+              return (
+                <ProfissionalCard
+                  key={profissional.id}
+                  profissional={profissional}
+                  comparado={estaComparado}
+                  onToggleCompare={() => !limiteAtingido && toggleCompare(profissional.id)}
+                  onPress={() => {
+                    marcarVisitado(profissional.id);
+                    router.push(
+                      `/profissional/${profissional.id}?distancia=${encodeURIComponent(String(profissional.distancia_km))}`,
+                    );
+                  }}
+                />
+              );
+            })
           ) : (
-            <EmptyState
-              icon="search-outline"
-              title="Nenhum profissional por aqui"
-              message={
-                tipo || busca.trim()
-                  ? 'Tente remover o filtro ou buscar outro serviço.'
-                  : 'Ainda não encontramos profissionais que atendam nessa região. Tente atualizar sua localização mais tarde.'
-              }
-              actionLabel={tipo || busca.trim() ? 'Limpar filtros' : undefined}
-              onAction={() => {
-                setTipo(null);
-                setBusca('');
-              }}
-            />
+            <View style={styles.emptyProfissionais}>
+              <EmptyState
+                icon="search-outline"
+                title="Nenhum profissional por aqui"
+                message={
+                  tipo || busca.trim()
+                    ? 'Tente remover o filtro ou buscar outro serviço.'
+                    : temEndereco
+                      ? 'Não encontramos profissionais que atendam no seu endereço. Tente usar sua localização atual ou cadastre um endereço diferente.'
+                      : 'Cadastre seu endereço para ver profissionais que atendam na sua região.'
+                }
+                actionLabel={
+                  tipo || busca.trim()
+                    ? 'Limpar filtros'
+                    : temEndereco
+                      ? 'Usar localização atual'
+                      : 'Cadastrar endereço'
+                }
+                onAction={() => {
+                  if (tipo || busca.trim()) {
+                    setTipo(null);
+                    setBusca('');
+                  } else if (temEndereco) {
+                    void usarMinhaLocalizacao();
+                  } else {
+                    router.push('/endereco');
+                  }
+                }}
+              />
+              {(!temEndereco && !(tipo || busca.trim())) ? (
+                <Button
+                  label="Ou usar localização atual"
+                  variant="ghost"
+                  onPress={() => void usarMinhaLocalizacao()}
+                  fullWidth={false}
+                  style={styles.botaoSecundarioEmpty}
+                />
+              ) : null}
+            </View>
           )}
         </>
       )}
@@ -256,4 +382,30 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
+  barraComparar: { padding: spacing.md },
+  tituloBarra: { marginBottom: spacing.sm },
+  emptyProfissionais: { alignItems: 'center' },
+  botaoSecundarioEmpty: { marginTop: spacing.sm },
+  linhaVisitados: { gap: spacing.sm, paddingRight: spacing.lg },
+  scrollComparar: { marginBottom: spacing.sm },
+  itemComparar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    width: 170,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  infoComparar: { flex: 1 },
+  nomeComparar: { fontSize: 13, fontWeight: '700', color: colors.text },
+  removerComparar: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  botaoLimpar: { marginTop: spacing.sm },
 });

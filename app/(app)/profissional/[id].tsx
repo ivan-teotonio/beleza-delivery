@@ -367,16 +367,30 @@ export default function ProfissionalDetalhe() {
       ) : null}
 
       <SectionHeader title="Horários disponíveis" subtitle="Próximos 14 dias" />
-      <ChipRow>
-        {dias.map((chave) => (
-          <Chip
-            key={chave}
-            label={chave === hojeSP() ? `Hoje · ${formatDayShort(chave).split(', ')[1]}` : formatDayShort(chave)}
-            selected={dia === chave}
-            onPress={() => setDia(chave)}
-          />
-        ))}
-      </ChipRow>
+      <View>
+        <ChipRow>
+          {dias.slice(0, 5).map((chave) => (
+            <Chip
+              key={chave}
+              label={chave === hojeSP() ? `Hoje · ${formatDayShort(chave).split(', ')[1]}` : formatDayShort(chave)}
+              selected={dia === chave}
+              onPress={() => setDia(chave)}
+            />
+          ))}
+          {dias.length > 5 && (
+            <Chip
+              label="Ver mais dias"
+              selected={false}
+              onPress={() => setDia(dias[5] ?? hojeSP())}
+            />
+          )}
+        </ChipRow>
+        {dias.length > 5 && (
+          <AppText variant="caption" color={colors.textMuted} style={styles.ajusteDias}>
+            Deslize para ver mais dias — toque em "Ver mais dias" para pular direto.
+          </AppText>
+        )}
+      </View>
 
       {agenda.loading && !agenda.data ? (
         <Loading mensagem="Carregando horários..." />
@@ -386,7 +400,14 @@ export default function ProfissionalDetalhe() {
         <EmptyState
           icon="time-outline"
           title="Sem horários neste dia"
-          message="Escolha outra data ou entre em contato pelo chat depois de solicitar."
+          message="Este profissional não tem blocos disponíveis neste dia."
+          actionLabel="Ver outros dias"
+          onAction={() => {
+            showToast(
+              'Toque em outra data nos chips acima para ver os horários disponíveis.',
+              'info',
+            );
+          }}
         />
       ) : (
         <View style={styles.slots}>
@@ -535,4 +556,5 @@ const styles = StyleSheet.create({
   comentario: { fontStyle: 'italic' },
   confirmacao: { gap: 2 },
   avisoConfirmacao: { marginTop: spacing.sm },
+  ajusteDias: { marginTop: spacing.xs, marginBottom: spacing.lg },
 });

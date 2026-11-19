@@ -15,6 +15,7 @@ import { Loading } from '../../../src/components/Loading';
 import { Notice } from '../../../src/components/Notice';
 import { StaleNotice } from '../../../src/components/OfflineBanner';
 import { PageHeader } from '../../../src/components/PageHeader';
+import { TooltipHint } from '../../../src/components/TooltipHint';
 import {
   atualizarServico,
   criarServico,
@@ -59,6 +60,7 @@ export default function Servicos() {
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState<Servico | null>(null);
+  const [precoAjudaVisto, setPrecoAjudaVisto] = useState(false);
 
   const consulta = useQuery(
     `servicos:${profissionalId ?? 'sem'}`,
@@ -163,8 +165,29 @@ export default function Servicos() {
     }
     setSalvando(true);
     try {
+      const servicoParaRestaurar = excluindo;
       await excluirServico(excluindo.id);
-      showToast('Serviço excluído.');
+      showToast(
+        'Serviço excluído.',
+        'success',
+        {
+          label: 'Desfazer',
+          onPress: async () => {
+            try {
+              await criarServico(profissionalId!, {
+                tipo: servicoParaRestaurar.tipo,
+                preco_centavos: servicoParaRestaurar.preco_centavos,
+                duracao_min: servicoParaRestaurar.duracao_min,
+                ativo: servicoParaRestaurar.ativo,
+              });
+              showToast('Serviço restaurado.');
+            } catch (erroRestore) {
+              showToast(mensagemErro(erroRestore), 'error');
+            }
+            await consulta.refresh();
+          },
+        }
+      );
       setExcluindo(null);
       await consulta.refresh();
     } catch (falha) {
@@ -317,6 +340,14 @@ export default function Servicos() {
               <Chip key={sugestao} label={sugestao} onPress={() => setTipo(sugestao)} />
             ))}
         </View>
+        <View style={styles.tooltipPreco}>
+          <TooltipHint
+            title="Como o preço é composto"
+            message="O cliente paga o preço do serviço mais o valor do deslocamento, definido por você em faixas de distância (ex.: até 5 km = R$ 5,00; até 10 km = R$ 8,00). O total é calculado pelo servidor e mostrado antes de confirmar o agendamento."
+            dismissed={precoAjudaVisto}
+            onDismiss={() => setPrecoAjudaVisto(true)}
+          />
+        </View>
         <TextField
           label="Preço"
           required
@@ -409,4 +440,5 @@ const styles = StyleSheet.create({
   acao: { flexGrow: 1, flexBasis: 100 },
   sugestoes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   duracoes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  tooltipPreco: { marginBottom: spacing.xs, alignSelf: 'flex-start' },
 });

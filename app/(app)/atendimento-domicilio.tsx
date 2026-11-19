@@ -13,6 +13,7 @@ import { InfoRow, Divider } from '../../src/components/InfoRow';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ErrorState } from '../../src/components/ErrorState';
 import { Loading } from '../../src/components/Loading';
+import { TooltipHint } from '../../src/components/TooltipHint';
 import { listarFaixas, salvarConfigDeslocamento } from '../../src/lib/api';
 import { centsToInput, formatBRL, formatDistance, parseMoneyToCents } from '../../src/lib/format';
 import { distanciasDeExemplo, selecionarFaixa, validarFaixas, type FaixaDeslocamento } from '../../src/lib/pricing';
@@ -40,6 +41,7 @@ export default function AtendimentoDomicilio() {
   const [faixasForm, setFaixasForm] = useState<FaixaForm[]>([{ ...FAIXA_VAZIA }]);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [faixasAjudaVisto, setFaixasAjudaVisto] = useState(false);
 
   const faixasQuery = useQuery(
     `faixas:${profissionalId ?? 'sem'}`,
@@ -186,6 +188,14 @@ export default function AtendimentoDomicilio() {
         helper="A última faixa deve ter limite igual a esta distância."
       />
 
+      <View style={styles.tooltipFaixas}>
+        <TooltipHint
+          title="Como funcionam as faixas de deslocamento"
+          message="Cada faixa define um limite de distância e um valor em R$. O cliente paga a menor faixa cujo limite cobre a distância até ele. Ex.: distância 7,4 km → faixa 'até 10 km' → R$ 8,00. A última faixa deve ser igual à distância máxima de atendimento."
+          dismissed={faixasAjudaVisto}
+          onDismiss={() => setFaixasAjudaVisto(true)}
+        />
+      </View>
       <SectionHeader
         title="Faixas de deslocamento"
         subtitle="Limites crescentes, sem sobreposição"
@@ -273,4 +283,5 @@ const styles = StyleSheet.create({
   campoMetade: { flex: 1 },
   semMargem: { marginBottom: 0 },
   previa: { gap: 2, marginBottom: spacing.lg },
+  tooltipFaixas: { marginBottom: spacing.xs, alignSelf: 'flex-start' },
 });

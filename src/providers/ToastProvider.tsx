@@ -7,15 +7,20 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { AccessibilityInfo, Animated, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '../components/AppText';
 import { colors, radius, shadow, spacing } from '../theme';
 
 type ToastTipo = 'success' | 'error' | 'info';
 
+interface ToastAction {
+  label: string;
+  onPress: () => void;
+}
+
 interface ToastContextValue {
-  showToast: (mensagem: string, tipo?: ToastTipo) => void;
+  showToast: (mensagem: string, tipo?: ToastTipo, action?: ToastAction) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -27,16 +32,16 @@ const CORES: Record<ToastTipo, { fundo: string; texto: string; borda: string }> 
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toast, setToast] = useState<{ mensagem: string; tipo: ToastTipo } | null>(null);
+  const [toast, setToast] = useState<{ mensagem: string; tipo: ToastTipo; action?: ToastAction } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const opacidade = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
 
   const showToast = useCallback(
-    (mensagem: string, tipo: ToastTipo = 'success') => {
+    (mensagem: string, tipo: ToastTipo = 'success', action?: ToastAction) => {
       if (!mensagem) return;
       if (timer.current) clearTimeout(timer.current);
-      setToast({ mensagem, tipo });
+      setToast({ mensagem, tipo, action });
       AccessibilityInfo.announceForAccessibility(mensagem);
       Animated.timing(opacidade, {
         toValue: 1,
@@ -49,7 +54,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           duration: 220,
           useNativeDriver: true,
         }).start(() => setToast(null));
-      }, 3600);
+      }, 5000);
     },
     [opacidade],
   );
@@ -77,9 +82,22 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             { opacity: opacidade },
           ]}
         >
-          <AppText variant="bodyStrong" style={{ color: cores.texto }}>
-            {toast.mensagem}
-          </AppText>
+          <View style={styles.toastConteudo}>
+            <AppText variant="bodyStrong" style={{ color: cores.texto }}>
+              {toast.mensagem}
+            </AppText>
+            {toast.action ? (
+              <TouchableOpacity
+                onPress={toast.action.onPress}
+                style={styles.toastAcao}
+                hitSlop={8}
+              >
+                <AppText variant="button" style={{ color: cores.texto }}>
+                  {toast.action.label}
+                </AppText>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </Animated.View>
       ) : null}
     </ToastContext.Provider>
@@ -104,4 +122,10 @@ const styles = StyleSheet.create({
     ...shadow.floating,
     zIndex: 999,
   },
+  toastConteudo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toastAcao: { marginLeft: spacing.md },
 });

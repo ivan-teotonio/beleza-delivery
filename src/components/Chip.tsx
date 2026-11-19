@@ -16,7 +16,7 @@ export function Chip({ label, selected = false, onPress }: ChipProps) {
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected }}
-      hitSlop={4}
+      hitSlop={8}
       style={({ pressed }) => [
         styles.chip,
         selected ? styles.selecionado : null,
@@ -56,7 +56,7 @@ export function ChipRow({
 
 const styles = StyleSheet.create({
   chip: {
-    minHeight: 44,
+    minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
@@ -67,5 +67,5 @@ const styles = StyleSheet.create({
   selecionado: { backgroundColor: colors.primary, borderColor: colors.primary },
   texto: { fontWeight: '700' },
   scroll: { marginBottom: spacing.sm },
-  linha: { gap: spacing.sm, paddingVertical: spacing.xs, paddingRight: spacing.lg },
+  linha: { gap: spacing.md, paddingVertical: spacing.xs, paddingRight: spacing.xxl },
 });

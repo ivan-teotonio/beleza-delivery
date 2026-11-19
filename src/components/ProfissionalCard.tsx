@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './Card';
 import { AppText } from './AppText';
@@ -13,9 +13,13 @@ import { colors, radius, spacing } from '../theme';
 export function ProfissionalCard({
   profissional,
   onPress,
+  comparado = false,
+  onToggleCompare,
 }: {
   profissional: ResultadoBusca;
   onPress: () => void;
+  comparado?: boolean;
+  onToggleCompare?: () => void;
 }) {
   const servicos = profissional.servicos ?? [];
   const menorPreco = servicos.length
@@ -32,9 +36,25 @@ export function ProfissionalCard({
     .join('. ');
 
   return (
-    <Card onPress={onPress} accessibilityLabel={rotulo} accessibilityHint="Abre o perfil e a agenda" style={styles.card}>
+    <Card onPress={onPress} accessibilityLabel={rotulo} accessibilityHint="Abre o perfil e a agenda" style={[styles.card, comparado && styles.cardComparado]}>
       <View style={styles.linhaTopo}>
         <Avatar nome={profissional.nome} uri={profissional.foto_url} size={64} />
+        {onToggleCompare ? (
+          <TouchableOpacity
+            onPress={onToggleCompare}
+            accessibilityRole="checkbox"
+            accessibilityLabel={`${comparado ? 'Remover' : 'Adicionar'} ${profissional.nome} ${comparado ? 'da' : 'à'} comparação`}
+            accessibilityHint="Seleciona este profissional para comparar serviços e preços"
+            accessibilityState={{ checked: comparado }}
+            style={[styles.toggleComparar, comparado && styles.toggleCompararAtivo]}
+          >
+            <Ionicons
+              name="git-compare-outline"
+              size={21}
+              color={comparado ? colors.warning : colors.textMuted}
+            />
+          </TouchableOpacity>
+        ) : null}
         <View style={styles.info}>
           <View style={styles.nomeLinha}>
             <AppText variant="subtitle" numberOfLines={1} style={styles.nome}>
@@ -100,7 +120,18 @@ export function ProfissionalCard({
 
 const styles = StyleSheet.create({
   card: { marginBottom: spacing.md },
-  linhaTopo: { flexDirection: 'row', gap: spacing.md },
+  cardComparado: { borderWidth: 2, borderColor: colors.warning },
+  linhaTopo: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
+  toggleComparar: {
+    minWidth: 48,
+    minHeight: 48,
+    marginTop: -spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
+  },
+  toggleCompararAtivo: { backgroundColor: colors.warningBg },
   info: { flex: 1, gap: 2 },
   nomeLinha: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   nome: { flexShrink: 1 },

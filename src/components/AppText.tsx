@@ -29,7 +29,7 @@ export const AppText = React.forwardRef<React.ElementRef<typeof Text>, AppTextPr
       ref={ref}
       {...rest}
       allowFontScaling
-      maxFontSizeMultiplier={1.4}
+      maxFontSizeMultiplier={1.6}
       style={[
         base,
         { fontSize: Math.round(font * fontScale), lineHeight: Math.round(line * fontScale) },

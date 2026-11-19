@@ -1,0 +1,83 @@
+{
+  "version": 2,
+  "skills": {
+    "gitnexus-cli": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-cli/SKILL.md",
+      "computedHash": "aa0e981d06ce563587eb78fd77274979e72cd3e76b1ccb7f7570ecf36c8839e4"
+    },
+    "gitnexus-debugging": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-debugging/SKILL.md",
+      "computedHash": "4a7a1c3b51a44fe63a65715e6ace019455d121a8a62f32db165930184d92577c"
+    },
+    "gitnexus-exploring": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-exploring/SKILL.md",
+      "computedHash": "70d32cb96d2e8ff697b63d2a3bf936aec51095ebddbb52dca3785129338dbf38"
+    },
+    "gitnexus-guide": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-guide/SKILL.md",
+      "computedHash": "b6379bc56930539dff96cfacef9f1a216feb833a7ab82f1c6852bd0cc32b2550"
+    },
+    "gitnexus-impact-analysis": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-impact-analysis/SKILL.md",
+      "computedHash": "8c5b89f12fcbfaa71316378d72c636d9ba4ba5f1dc9480884521a18f3163acca"
+    },
+    "gitnexus-lfg": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-lfg/SKILL.md",
+      "computedHash": "d0aeed6b679dce85c9d784be26db1256a4c24576a9d5b7262e8187ed063cb845"
+    },
+    "gitnexus-pdg-query": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus/gitnexus-pdg-query/SKILL.md",
+      "computedHash": "6f652e2967925ddc9522b82f9123b3572b3ccd8fc0cd86df8ef69f24c9fe9605"
+    },
+    "gitnexus-plan": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-plan/SKILL.md",
+      "computedHash": "17d8ee3528142615f69c1d28cf2b02231eef5fa7e65610262dd64db44f761c5c"
+    },
+    "gitnexus-pr-swarm-review": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-pr-swarm-review/SKILL.md",
+      "computedHash": "02338b749c4d29bc719a1a9b9058006319ca45fe6605e927116da194a87128a4"
+    },
+    "gitnexus-refactoring": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-refactoring/SKILL.md",
+      "computedHash": "35aabd2e82ddc07998303ba7fb8b9feb40f5f0d05339199fad08543dbfb5a434"
+    },
+    "gitnexus-review": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-review/SKILL.md",
+      "computedHash": "4405ae4cde05aa1f7a42a9c9304a34b413d621e3857013090e20fe15d432cdeb"
+    },
+    "gitnexus-taint-analysis": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus/gitnexus-taint-analysis/SKILL.md",
+      "computedHash": "f9abfd25d1e773673ce8081e7472f55f772d8b06449384c9fc7ae91fb11d0f93"
+    },
+    "gitnexus-work": {
+      "source": "abhigyanpatwari/GitNexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus-work/SKILL.md",
+      "computedHash": "e4ee659871aeccec826ac60805a872659b4e5421470c82fad6fbe4a504197861"
+    }
+  }
+}

@@ -187,20 +187,94 @@ join (values
 ) as v(email, tipo, preco, duracao) on v.email = u.email;
 
 -- ------------------------------------------------------------
--- Portfólio
+-- Fotos reais por tipo de serviço (Pexels)
+-- URLs validadas (HTTP 200). Substitui picsum.photos, que devolve imagens
+-- aleatórias sem relação com o serviço (ex.: copo de café no portfólio
+-- de quem faz corte masculino).
+-- ------------------------------------------------------------
+create or replace function fotos_servico(p_tipo text)
+returns text[] as $$
+begin
+  return case p_tipo
+    when 'Manicure' then array[
+      'https://images.pexels.com/photos/14267564/pexels-photo-14267564.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/18112333/pexels-photo-18112333.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/19239100/pexels-photo-19239100.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+    when 'Pedicure' then array[
+      'https://images.pexels.com/photos/34930123/pexels-photo-34930123.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/5619449/pexels-photo-5619449.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/17056220/pexels-photo-17056220.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+    when 'Corte feminino' then array[
+      'https://images.pexels.com/photos/3993445/pexels-photo-3993445.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/19239103/pexels-photo-19239103.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/10593034/pexels-photo-10593034.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+    when 'Corte masculino' then array[
+      'https://images.pexels.com/photos/7518742/pexels-photo-7518742.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/7697644/pexels-photo-7697644.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/7697287/pexels-photo-7697287.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+    when 'Barba' then array[
+      'https://images.pexels.com/photos/3998417/pexels-photo-3998417.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/7518732/pexels-photo-7518732.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/7518727/pexels-photo-7518727.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+    when 'Maquiagem' then array[
+      'https://images.pexels.com/photos/7510157/pexels-photo-7510157.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/6648491/pexels-photo-6648491.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/10457787/pexels-photo-10457787.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+    when 'Limpeza de pele' then array[
+      'https://images.pexels.com/photos/5069432/pexels-photo-5069432.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/3738349/pexels-photo-3738349.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/6663368/pexels-photo-6663368.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+    when 'Escova' then array[
+      'https://images.pexels.com/photos/7755518/pexels-photo-7755518.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/7755553/pexels-photo-7755553.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/3993471/pexels-photo-3993471.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+    when 'Depilação' then array[
+      'https://images.pexels.com/photos/35103884/pexels-photo-35103884.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/6763618/pexels-photo-6763618.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/19239114/pexels-photo-19239114.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+    when 'Sobrancelha' then array[
+      'https://images.pexels.com/photos/29588096/pexels-photo-29588096.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/5177995/pexels-photo-5177995.jpeg?auto=compress&cs=tinysrgb&w=800',
+      'https://images.pexels.com/photos/6135628/pexels-photo-6135628.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+    else array[
+      'https://images.pexels.com/photos/14267564/pexels-photo-14267564.jpeg?auto=compress&cs=tinysrgb&w=800'
+    ]
+  end;
+end;
+$$ language plpgsql immutable;
+
+-- ------------------------------------------------------------
+-- Portfólio gerado a partir dos serviços cadastrados
+-- Cada serviço do profissional contribui com 3 fotos da sua categoria.
 -- ------------------------------------------------------------
 insert into public.foto_portfolio (profissional_id, url)
-select p.id, v.url
+select p.id, foto.url
 from public.profissional p
 join public.usuario u on u.id = p.usuario_id
-join (values
-  ('mariana@beleza.app', 'https://picsum.photos/seed/mariana-work-1/800/800'),
-  ('mariana@beleza.app', 'https://picsum.photos/seed/mariana-work-2/800/800'),
-  ('joao@beleza.app',    'https://picsum.photos/seed/joao-work-1/800/800'),
-  ('joao@beleza.app',    'https://picsum.photos/seed/joao-work-2/800/800'),
-  ('luiza@beleza.app',   'https://picsum.photos/seed/luiza-work-1/800/800'),
-  ('luiza@beleza.app',   'https://picsum.photos/seed/luiza-work-2/800/800')
-) as v(email, url) on v.email = u.email;
+join public.servico s on s.profissional_id = p.id
+cross join lateral unnest(fotos_servico(s.tipo)) as foto(url)
+where s.ativo;
+
+-- Avatar também deixa de ser picsum aleatório: primeira foto do primeiro serviço
+update public.profissional p
+set foto_url = (
+  select (fotos_servico(s.tipo))[1]
+  from public.servico s
+  where s.profissional_id = p.id and s.ativo
+  order by s.id
+  limit 1
+)
+where p.foto_url like 'https://picsum.photos%';
 
 -- ------------------------------------------------------------
 -- Agenda dos profissionais aprovados (próximos 7 dias)

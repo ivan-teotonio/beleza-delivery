@@ -196,16 +196,30 @@ export default function Agenda() {
 
       {consulta.stale ? <StaleNotice /> : null}
 
-      <ChipRow>
-        {dias.map((chave) => (
-          <Chip
-            key={chave}
-            label={chave === hojeSP() ? `Hoje · ${formatDayShort(chave).split(', ')[1]}` : formatDayShort(chave)}
-            selected={dia === chave}
-            onPress={() => setDia(chave)}
-          />
-        ))}
-      </ChipRow>
+      <View>
+        <ChipRow>
+          {dias.slice(0, 5).map((chave) => (
+            <Chip
+              key={chave}
+              label={chave === hojeSP() ? `Hoje · ${formatDayShort(chave).split(', ')[1]}` : formatDayShort(chave)}
+              selected={dia === chave}
+              onPress={() => setDia(chave)}
+            />
+          ))}
+          {dias.length > 5 && (
+            <Chip
+              label="Ver mais dias"
+              selected={false}
+              onPress={() => setDia(dias[5] ?? hojeSP())}
+            />
+          )}
+        </ChipRow>
+        {dias.length > 5 && (
+          <AppText variant="caption" color={colors.textMuted} style={styles.ajusteDias}>
+            Deslize para ver mais dias — toque em "Ver mais dias" para pular direto.
+          </AppText>
+        )}
+      </View>
 
       <View style={styles.resumo}>
         <AppText variant="bodyStrong">{formatDayLong(dia)}</AppText>
@@ -348,6 +362,7 @@ export default function Agenda() {
 
 const styles = StyleSheet.create({
   subtitulo: { marginTop: spacing.xs, marginBottom: spacing.lg },
+  ajusteDias: { marginTop: spacing.xs, marginBottom: spacing.lg },
   resumo: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,

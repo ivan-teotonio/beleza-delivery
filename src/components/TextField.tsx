@@ -62,7 +62,7 @@ export const TextField = React.forwardRef<React.ElementRef<typeof TextInput>, Te
           ref={ref}
           {...rest}
           allowFontScaling
-          maxFontSizeMultiplier={1.4}
+          maxFontSizeMultiplier={1.6}
           accessibilityLabel={accessibilityLabel ?? label}
           accessibilityHint={error ?? helper}
           placeholderTextColor={colors.textMuted}

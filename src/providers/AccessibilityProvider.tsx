@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import * as SecureStore from 'expo-secure-store';
 
 const STORAGE_KEY = 'beleza.fontscale';
-const ESCALAS = [1, 1.15, 1.3] as const;
+const ESCALAS = [1, 1.15, 1.3, 1.5] as const;
 
 interface AccessibilityContextValue {
   fontScale: number;
