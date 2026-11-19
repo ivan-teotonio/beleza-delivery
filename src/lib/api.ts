@@ -1,4 +1,5 @@
-import { supabase } from './supabase';
+import { SUPABASE_ANON_KEY, SUPABASE_URL, supabase } from './supabase';
+import { codigoEhValido, normalizarEmail } from './codigoAcesso';
 import { AppError, erroDeRpc, mensagemErro } from './errors';
 import type {
   Agendamento,
@@ -32,36 +33,86 @@ function falha(error: unknown): never {
 }
 
 // ------------------------------------------------------------
-// Autenticação (Supabase Auth)
+// Autenticação sem senha (SPEC v1.5 — RF33/RF34)
 // ------------------------------------------------------------
-export interface CadastroInput {
+export type TipoCadastro = Exclude<TipoConta, 'admin'>;
+
+export interface SolicitarCodigoInput {
   nome: string;
   email: string;
-  telefone: string;
-  senha: string;
-  tipo: Exclude<TipoConta, 'admin'>;
+  tipo: TipoCadastro;
 }
 
-export async function cadastrar(input: CadastroInput) {
-  const { data, error } = await supabase.auth.signUp({
-    email: input.email.trim().toLowerCase(),
-    password: input.senha,
-    options: {
-      data: {
-        tipo: input.tipo,
-        nome: input.nome.trim(),
-        telefone: input.telefone.trim(),
+export interface SolicitarCodigoResultado {
+  ok: boolean;
+  reenviar_em: number;
+  /** Presente apenas quando DEMO_MODE=true no servidor. */
+  codigo_demo?: string;
+}
+
+/** Erro de cooldown: informa em quantos segundos um novo código pode ser enviado. */
+export class ErroCooldownCodigo extends AppError {
+  reenviarEm: number;
+
+  constructor(mensagem: string, reenviarEm: number) {
+    super(mensagem);
+    this.reenviarEm = reenviarEm;
+  }
+}
+
+async function chamarFunction<T>(nome: string, corpo: unknown): Promise<T> {
+  let resposta: Response;
+  try {
+    resposta = await fetch(`${SUPABASE_URL}/functions/v1/${nome}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
-    },
-  });
-  if (error) falha(error);
-  return data;
+      body: JSON.stringify(corpo),
+    });
+  } catch {
+    falha(new Error('Sem conexão com o servidor. Verifique sua internet e tente novamente.'));
+  }
+
+  let dados: Record<string, unknown> = {};
+  try {
+    dados = (await resposta.json()) as Record<string, unknown>;
+  } catch {
+    // Resposta sem corpo.
+  }
+
+  if (!resposta.ok) {
+    const mensagem = typeof dados.erro === 'string' ? dados.erro : 'Não foi possível concluir a solicitação.';
+    if (resposta.status === 429 && typeof dados.reenviar_em === 'number') {
+      throw new ErroCooldownCodigo(mensagem, dados.reenviar_em);
+    }
+    throw new AppError(mensagem);
+  }
+
+  return dados as T;
 }
 
-export async function entrar(email: string, senha: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
-    password: senha,
+/** RF33 — cria a conta se necessário e envia o código de acesso ao e-mail. */
+export async function solicitarCodigoAcesso(input: SolicitarCodigoInput): Promise<SolicitarCodigoResultado> {
+  return chamarFunction<SolicitarCodigoResultado>('solicitar-codigo-acesso', {
+    nome: input.nome.trim(),
+    email: normalizarEmail(input.email),
+    tipo: input.tipo,
+  });
+}
+
+/** RF34 — valida o código e troca o token_hash por uma sessão do Supabase. */
+export async function entrarComCodigo(email: string, codigo: string) {
+  if (!codigoEhValido(codigo)) throw new AppError('Digite os 6 dígitos do código recebido.');
+  const validado = await chamarFunction<{ token_hash: string; email: string }>('validar-codigo-acesso', {
+    email: normalizarEmail(email),
+    codigo: codigo.replace(/\D/g, ''),
+  });
+  const { data, error } = await supabase.auth.verifyOtp({
+    token_hash: validado.token_hash,
+    type: 'magiclink',
   });
   if (error) falha(error);
   return data;
@@ -72,23 +123,28 @@ export async function sair() {
   if (error) falha(error);
 }
 
-export async function recuperarSenha(email: string) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-    redirectTo: 'beleza-delivery://redefinir-senha',
-  });
-  if (error) falha(error);
-}
+/** T118 — revoga todas as sessões/refresh tokens do usuário e limpa a sessão local. */
+export async function sairDeTodosOsDispositivos() {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new AppError('Sua sessão expirou. Entre novamente para continuar.');
 
-/** Conclui o link de recuperação (fluxo PKCE) trocando o código por sessão. */
-export async function trocarCodigoPorSessao(codigo: string) {
-  const { data, error } = await supabase.auth.exchangeCodeForSession(codigo);
-  if (error) falha(error);
-  return data.session;
-}
+  let resposta: Response;
+  try {
+    resposta = await fetch(`${SUPABASE_URL}/auth/v1/logout?scope=global`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch {
+    falha(new Error('Sem conexão com o servidor. Verifique sua internet e tente novamente.'));
+  }
+  if (!resposta.ok) throw new AppError('Não foi possível encerrar as sessões. Tente novamente.');
 
-/** Define a nova senha do usuário autenticado (link de recuperação). */
-export async function definirNovaSenha(senha: string) {
-  const { error } = await supabase.auth.updateUser({ password: senha });
+  // O servidor já revogou todos os refresh tokens; aqui só removemos o local.
+  const { error } = await supabase.auth.signOut({ scope: 'local' });
   if (error) falha(error);
 }
 

@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { AppState, Platform } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
-import { meuPerfil, registrarDispositivo, sair } from '../lib/api';
+import { meuPerfil, registrarDispositivo, sair, sairDeTodosOsDispositivos } from '../lib/api';
 import { mensagemErro } from '../lib/errors';
 import { prepararNotificacoes } from '../lib/notifications';
 import { cacheClear, cacheGet, cacheSet } from '../lib/offline/db';
@@ -27,6 +27,7 @@ interface SessionContextValue {
   precisaOnboarding: boolean;
   recarregarPerfil: () => Promise<void>;
   encerrarSessao: () => Promise<void>;
+  encerrarTodasAsSessoes: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -165,6 +166,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const encerrarTodasAsSessoes = useCallback(async () => {
+    await sairDeTodosOsDispositivos();
+    await cacheClear();
+    setPerfil(null);
+    setPerfilStale(false);
+    setErroPerfil(null);
+    setSession(null);
+    userIdRef.current = null;
+  }, []);
+
   const tipo = (perfil?.usuario?.tipo ?? null) as TipoConta | null;
   const precisaOnboarding = tipo === 'profissional' && !perfil?.profissional;
 
@@ -180,6 +191,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       precisaOnboarding,
       recarregarPerfil,
       encerrarSessao,
+      encerrarTodasAsSessoes,
     }),
     [
       session,
@@ -192,6 +204,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       precisaOnboarding,
       recarregarPerfil,
       encerrarSessao,
+      encerrarTodasAsSessoes,
     ],
   );
 

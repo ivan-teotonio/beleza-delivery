@@ -8,15 +8,13 @@ import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
 import { Card } from '../../src/components/Card';
 import { FormError } from '../../src/components/ErrorState';
-import { Notice } from '../../src/components/Notice';
-import { recuperarSenha } from '../../src/lib/api';
+import { ErroCooldownCodigo, solicitarCodigoAcesso } from '../../src/lib/api';
 import { mensagemErro } from '../../src/lib/errors';
 import { colors, spacing } from '../../src/theme';
 
 export default function Recuperar() {
   const [email, setEmail] = useState('');
   const [erro, setErro] = useState<string | null>(null);
-  const [enviado, setEnviado] = useState(false);
   const [carregando, setCarregando] = useState(false);
 
   async function enviar() {
@@ -27,10 +25,24 @@ export default function Recuperar() {
     }
     setCarregando(true);
     try {
-      await recuperarSenha(email);
-      setEnviado(true);
+      const resultado = await solicitarCodigoAcesso({
+        nome: '',
+        email: email.trim(),
+        tipo: 'cliente',
+      });
+      const parametros = new URLSearchParams({
+        email: email.trim().toLowerCase(),
+        origem: 'login',
+        reenviar_em: String(resultado.reenviar_em ?? 60),
+      });
+      if (resultado.codigo_demo) parametros.set('demo', resultado.codigo_demo);
+      router.push(`/codigo-acesso?${parametros.toString()}`);
     } catch (falha) {
-      setErro(mensagemErro(falha));
+      if (falha instanceof ErroCooldownCodigo) {
+        setErro(`Aguarde ${falha.reenviarEm} s para receber outro código.`);
+      } else {
+        setErro(mensagemErro(falha));
+      }
     } finally {
       setCarregando(false);
     }
@@ -47,20 +59,13 @@ export default function Recuperar() {
         <Ionicons name="arrow-back" size={24} color={colors.primary} />
       </Pressable>
 
-      <AppText variant="display">Recuperar senha</AppText>
+      <AppText variant="display">Receber código de acesso</AppText>
       <AppText variant="body" color={colors.textMuted} style={styles.subtitulo}>
-        Informe o e-mail da sua conta. Enviaremos um link seguro para você criar uma nova senha.
+        Informe o e-mail da sua conta. Enviaremos um novo código — não usamos senha.
       </AppText>
 
       <Card style={styles.card}>
         <FormError mensagem={erro} />
-        {enviado ? (
-          <Notice
-            tone="success"
-            title="Link enviado"
-            message={`Se existir uma conta para ${email.trim()}, você receberá um e-mail com instruções. Verifique também a caixa de spam.`}
-          />
-        ) : null}
 
         <TextField
           label="E-mail"
@@ -75,11 +80,11 @@ export default function Recuperar() {
           leftIcon="mail-outline"
           returnKeyType="send"
           onSubmitEditing={() => void enviar()}
-          editable={!carregando && !enviado}
+          editable={!carregando}
         />
 
         <Button
-          label={enviado ? 'Enviar novamente' : 'Enviar link de recuperação'}
+          label="Enviar código"
           onPress={() => void enviar()}
           loading={carregando}
           disabled={carregando}

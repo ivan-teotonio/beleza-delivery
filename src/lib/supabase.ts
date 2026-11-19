@@ -29,3 +29,4 @@ export const supabase = createClient(url, anonKey, {
 });
 
 export const SUPABASE_URL = url;
+export const SUPABASE_ANON_KEY = anonKey;

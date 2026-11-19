@@ -11,6 +11,7 @@ import { Button } from '../../../src/components/Button';
 import { Dialog } from '../../../src/components/Dialog';
 import { Notice } from '../../../src/components/Notice';
 import { SectionHeader } from '../../../src/components/SectionHeader';
+import { mensagemErro } from '../../../src/lib/errors';
 import { useSession } from '../../../src/providers/SessionProvider';
 import { useToast } from '../../../src/providers/ToastProvider';
 import { colors, minTouchTarget, radius, spacing } from '../../../src/theme';
@@ -104,10 +105,12 @@ const ITENS_ADMIN: ItemMenu[] = [
 ];
 
 export default function Perfil() {
-  const { perfil, tipo, encerrarSessao } = useSession();
+  const { perfil, tipo, encerrarSessao, encerrarTodasAsSessoes } = useSession();
   const { showToast } = useToast();
   const [sairAberto, setSairAberto] = useState(false);
   const [saindo, setSaindo] = useState(false);
+  const [sairTodosAberto, setSairTodosAberto] = useState(false);
+  const [saindoTodos, setSaindoTodos] = useState(false);
 
   const nome =
     perfil?.profissional?.nome ?? perfil?.cliente?.nome ?? perfil?.usuario?.email?.split('@')[0] ?? 'Usuário';
@@ -126,6 +129,20 @@ export default function Perfil() {
     } finally {
       setSaindo(false);
       setSairAberto(false);
+    }
+  }
+
+  async function sairDeTodos() {
+    setSaindoTodos(true);
+    try {
+      await encerrarTodasAsSessoes();
+      showToast('Todas as sessões foram encerradas.');
+      router.replace('/entrar');
+    } catch (erro) {
+      showToast(mensagemErro(erro), 'error');
+    } finally {
+      setSaindoTodos(false);
+      setSairTodosAberto(false);
     }
   }
 
@@ -239,6 +256,14 @@ export default function Perfil() {
         icon="log-out-outline"
         style={styles.sair}
       />
+      <Button
+        label="Sair de todos os dispositivos"
+        onPress={() => setSairTodosAberto(true)}
+        variant="ghost"
+        icon="person-remove-outline"
+        accessibilityHint="Encerra esta e todas as outras sessões ativas da sua conta"
+        style={styles.sair}
+      />
 
       <AppText variant="caption" center style={styles.versao}>
         Beleza a Domicílio · versão 1.0.0
@@ -262,6 +287,28 @@ export default function Perfil() {
             onPress: () => void sair(),
             variant: 'danger',
             loading: saindo,
+          },
+        ]}
+      />
+
+      <Dialog
+        visible={sairTodosAberto}
+        onClose={() => setSairTodosAberto(false)}
+        title="Sair de todos os dispositivos?"
+        message="Todas as sessões ativas serão encerradas, inclusive em outros aparelhos. Você precisará receber um novo código para entrar."
+        dismissible={!saindoTodos}
+        actions={[
+          {
+            label: 'Cancelar',
+            onPress: () => setSairTodosAberto(false),
+            variant: 'ghost',
+            disabled: saindoTodos,
+          },
+          {
+            label: 'Encerrar todas as sessões',
+            onPress: () => void sairDeTodos(),
+            variant: 'danger',
+            loading: saindoTodos,
           },
         ]}
       />

@@ -8,12 +8,8 @@ import { TextField } from '../../src/components/TextField';
 import { Button } from '../../src/components/Button';
 import { Card } from '../../src/components/Card';
 import { FormError } from '../../src/components/ErrorState';
-import { Notice } from '../../src/components/Notice';
-import { cadastrar, entrar } from '../../src/lib/api';
+import { ErroCooldownCodigo, solicitarCodigoAcesso } from '../../src/lib/api';
 import { mensagemErro } from '../../src/lib/errors';
-import { formatPhone, onlyDigits } from '../../src/lib/format';
-import { useSession } from '../../src/providers/SessionProvider';
-import { useToast } from '../../src/providers/ToastProvider';
 import { colors, radius, spacing } from '../../src/theme';
 
 type TipoCadastro = 'cliente' | 'profissional';
@@ -24,19 +20,10 @@ export default function Cadastro() {
   const [tipo, setTipo] = useState<TipoCadastro>(tipoInicial);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [senha, setSenha] = useState('');
-  const [confirmarSenha, setConfirmarSenha] = useState('');
   const [aceite, setAceite] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const emailRef = useRef<React.ElementRef<typeof TextInput>>(null);
-  const telefoneRef = useRef<React.ElementRef<typeof TextInput>>(null);
-  const senhaRef = useRef<React.ElementRef<typeof TextInput>>(null);
-  const confirmarRef = useRef<React.ElementRef<typeof TextInput>>(null);
-  const { recarregarPerfil } = useSession();
-  const { showToast } = useToast();
 
   const ehProfissional = tipo === 'profissional';
   const titulo = useMemo(
@@ -46,7 +33,6 @@ export default function Cadastro() {
 
   async function enviar() {
     setErro(null);
-    setSucesso(null);
 
     if (nome.trim().length < 2) {
       setErro('Informe seu nome completo.');
@@ -56,18 +42,6 @@ export default function Cadastro() {
       setErro('Informe um e-mail válido.');
       return;
     }
-    if (onlyDigits(telefone).length < 10) {
-      setErro('Informe um telefone com DDD.');
-      return;
-    }
-    if (senha.length < 6) {
-      setErro('A senha deve ter pelo menos 6 caracteres.');
-      return;
-    }
-    if (senha !== confirmarSenha) {
-      setErro('As senhas não conferem.');
-      return;
-    }
     if (!aceite) {
       setErro('É necessário aceitar o tratamento de dados para continuar.');
       return;
@@ -75,41 +49,26 @@ export default function Cadastro() {
 
     setCarregando(true);
     try {
-      const resultado = await cadastrar({
+      const resultado = await solicitarCodigoAcesso({
         nome: nome.trim(),
         email: email.trim(),
-        telefone: onlyDigits(telefone),
-        senha,
         tipo,
       });
-
-      let temSessao = Boolean(resultado.session);
-      if (!temSessao) {
-        try {
-          const login = await entrar(email, senha);
-          temSessao = Boolean(login.session);
-        } catch {
-          temSessao = false;
-        }
-      }
-
-      if (!temSessao) {
-        setSucesso(
-          'Conta criada! Enviamos um link de confirmação para o seu e-mail. Confirme e depois entre no app.',
-        );
-        return;
-      }
-
-      void recarregarPerfil();
-      showToast('Conta criada com sucesso!');
-
-      if (ehProfissional) {
-        router.replace('/onboarding-profissional');
-      } else {
-        router.replace('/inicio');
-      }
+      const parametros = new URLSearchParams({
+        email: email.trim().toLowerCase(),
+        nome: nome.trim(),
+        tipo,
+        origem: 'cadastro',
+        reenviar_em: String(resultado.reenviar_em ?? 60),
+      });
+      if (resultado.codigo_demo) parametros.set('demo', resultado.codigo_demo);
+      router.push(`/codigo-acesso?${parametros.toString()}`);
     } catch (falha) {
-      setErro(mensagemErro(falha));
+      if (falha instanceof ErroCooldownCodigo) {
+        setErro(`Aguarde ${falha.reenviarEm} s para receber outro código.`);
+      } else {
+        setErro(mensagemErro(falha));
+      }
     } finally {
       setCarregando(false);
     }
@@ -128,9 +87,7 @@ export default function Cadastro() {
 
       <AppText variant="display">{titulo}</AppText>
       <AppText variant="body" color={colors.textMuted} style={styles.subtitulo}>
-        {ehProfissional
-          ? 'Primeiro criamos seu acesso. Em seguida você completa foto, documentos, serviços e deslocamento.'
-          : 'Leva menos de um minuto. Você poderá cadastrar seu endereço depois.'}
+        É só informar nome e e-mail. Enviaremos um código para você entrar — sem senha. Depois você completa seu perfil.
       </AppText>
 
       <View style={styles.tipos} accessibilityRole="tablist">
@@ -160,7 +117,6 @@ export default function Cadastro() {
 
       <Card>
         <FormError mensagem={erro} />
-        {sucesso ? <Notice tone="success" message={sucesso} /> : null}
 
         <TextField
           label="Nome completo"
@@ -187,49 +143,7 @@ export default function Cadastro() {
           autoCorrect={false}
           autoComplete="email"
           leftIcon="mail-outline"
-          returnKeyType="next"
-          onSubmitEditing={() => telefoneRef.current?.focus()}
-          editable={!carregando}
-        />
-        <TextField
-          ref={telefoneRef}
-          label="Telefone com DDD"
-          required
-          value={telefone}
-          onChangeText={(texto) => setTelefone(formatPhone(texto))}
-          placeholder="(11) 99999-9999"
-          keyboardType="phone-pad"
-          autoComplete="tel"
-          leftIcon="call-outline"
-          returnKeyType="next"
-          onSubmitEditing={() => senhaRef.current?.focus()}
-          editable={!carregando}
-        />
-        <TextField
-          ref={senhaRef}
-          label="Senha"
-          required
-          value={senha}
-          onChangeText={setSenha}
-          placeholder="Mínimo de 6 caracteres"
-          secureTextEntry
-          autoComplete="new-password"
-          leftIcon="lock-closed-outline"
-          returnKeyType="next"
-          onSubmitEditing={() => confirmarRef.current?.focus()}
-          editable={!carregando}
-        />
-        <TextField
-          ref={confirmarRef}
-          label="Confirmar senha"
-          required
-          value={confirmarSenha}
-          onChangeText={setConfirmarSenha}
-          placeholder="Repita a senha"
-          secureTextEntry
-          autoComplete="new-password"
-          leftIcon="lock-closed-outline"
-          returnKeyType="done"
+          returnKeyType="send"
           onSubmitEditing={() => void enviar()}
           editable={!carregando}
         />
@@ -253,7 +167,7 @@ export default function Cadastro() {
         </Pressable>
 
         <Button
-          label={ehProfissional ? 'Criar conta e continuar' : 'Criar conta'}
+          label="Enviar código de acesso"
           onPress={() => void enviar()}
           loading={carregando}
           disabled={carregando}
@@ -270,9 +184,9 @@ export default function Cadastro() {
         style={styles.link}
       >
         <AppText variant="body" color={colors.textMuted}>
-          Já tenho conta?{' '}
+          Já tem conta?{' '}
           <AppText variant="bodyStrong" color={colors.primary}>
-            Entrar
+            Receber um código
           </AppText>
         </AppText>
       </Pressable>

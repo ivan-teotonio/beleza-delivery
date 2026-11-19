@@ -32,7 +32,6 @@ export default function RootLayout() {
                     name="onboarding-profissional"
                     options={{ gestureEnabled: false, animation: 'fade' }}
                   />
-                  <Stack.Screen name="redefinir-senha" />
                 </Stack>
               </ToastProvider>
             </SyncProvider>
