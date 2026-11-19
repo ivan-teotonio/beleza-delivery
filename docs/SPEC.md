@@ -1,9 +1,10 @@
 # 📋 Especificação de Requisitos (SPEC)
 
 **Projeto:** App de Agendamento de Serviços de Beleza a Domicílio para Pessoas com Dificuldade de Mobilidade
-**Versão:** 1.4 · **Status:** Ativa · **Última atualização:** 2026-11-08
-**Documento base:** `documentacao.pdf` (v1.0) · **Governança:** `docs/CONSTITUTION.MD` (v1.3)
+**Versão:** 1.5 · **Status:** Ativa · **Última atualização:** 2026-11-19
+**Documento base:** `documentacao.pdf` (v1.0) · **Governança:** `docs/CONSTITUTION.MD` (v1.4)
 **Plataforma da versão atual:** React Native + Expo (Android) + **SQLite local/Drizzle** como cache; **Supabase** (PostgreSQL, Auth, Storage, Realtime e Edge Functions) como banco e API.
+**Autenticação da versão atual:** cadastro com **nome + e-mail** e login **sem senha**, por **código de acesso** enviado ao e-mail (validade de **1 ano**, uso único) — ver §2.4, RF33/RF34, RN24 e CU 1.4.
 
 > **Como ler este documento.** Seção 1–2: contexto. Seção 3–5: *o quê* (RF, RNF, RN). Seção 6–7: regras críticas de precificação e estados. Seção 8: *quem faz* (casos de uso). Seção 9: *como é representado* (domínio). Seção 10: rastreabilidade. Seção 12: como comprovar entrega.
 > Alterações só entram pela seção 13 (*Registro de Mudanças*).
@@ -20,12 +21,13 @@ Permitir que o usuário localize profissionais de beleza próximos à sua resid�
 - Não há canal centralizado para localizar profissionais autônomos que atendam a domicílio.
 - O agendamento é informal (telefone/WhatsApp), sem filtro por distância, disponibilidade ou tipo de serviço, e sem histórico/comunicação unificados.
 
-### 1.3 Diretrizes centrais da versão atual (v1.4)
+### 1.3 Diretrizes centrais da versão atual (v1.5)
 1. **Deslocamento tem preço definido pelo profissional** por faixas de distância (RF26).
 2. **O profissional limita a distância que atende** (RF27) e nunca recebe solicitações além dela (RF30).
 3. **O profissional aceita ou recusa cada solicitação** (RF12 + RF29), sob prazo de resposta (RF31).
 4. **Arquitetura Supabase:** o **Supabase PostgreSQL** é a fonte de verdade; o **SQLite local** é cache/outbox; o app acessa dados **somente pela API do Supabase** (PostgREST, RPC, Storage e Realtime), com RLS (seção 2.4).
 5. **Offline para leitura, online para decisão:** dados podem ser consultados offline, mas **escritas críticas são confirmadas pelo Supabase** (RN18/RN19).
+6. **Login sem senha (v1.5):** o cadastro pede apenas **nome e e-mail**; o acesso é feito por **código de acesso** enviado ao e-mail, com **validade de 1 ano** e uso único (RF33/RF34).
 
 ## 2. Escopo e Atores
 
@@ -42,7 +44,7 @@ Cadastro (cliente/profissional/admin), perfil e endereço único, serviços, age
 
 ### 2.3 Fora de escopo → ver seção 11.
 
-### 2.4 Plataforma e arquitetura de dados (v1.4) — Supabase
+### 2.4 Plataforma e arquitetura de dados (v1.5) — Supabase
 
 O aplicativo é **React Native + Expo** para Android e conversa **somente** com a **API do Supabase** por HTTPS, usando o client oficial `supabase-js`. O **Supabase PostgreSQL** é a fonte de verdade; o **SQLite local** (`expo-sqlite` + Drizzle ORM) é cache de leitura, outbox de escrita e geocache — nunca autoridade.
 
@@ -63,7 +65,7 @@ Consequências normativas:
 - **Escrita crítica** (solicitar, aceitar, recusar, cancelar, concluir, expirar, aprovar profissional): **exige conexão** e é executada por **funções RPC transacionais**; só muda de estado local após confirmação do Supabase (RN18).
 - **Escrita não crítica** (rascunhos, preferências, geocache) pode ir para a outbox e sincronizar depois com idempotência (RN19/RF32).
 - **Realtime:** chat e mudanças de status usam canais do **Supabase Realtime**; push continua via **Expo Push** (RNF14), com fallback local.
-- **Autenticação:** **Supabase Auth** (e-mail/senha, JWT + refresh, hash bcrypt gerenciado pelo Supabase); a sessão é persistida em `expo-secure-store`. Google permanece fora de escopo (RF02).
+- **Autenticação (v1.5):** **sem senha**, via **Supabase Auth** + **código de acesso** enviado por e-mail. O cadastro pede apenas **nome, e-mail e tipo de conta**; o servidor cria a conta e envia um código de 6 dígitos, gravado apenas como **hash (SHA-256)** em `codigo_acesso`, com **validade de 1 ano**, **uso único** e limite de tentativas (RN24). A validação do código abre uma sessão **JWT + refresh rotativo** persistida em `expo-secure-store`, com duração de até **1 ano**. Login por senha e Google ficam fora de escopo (RF33/RF34).
 - **Regras de negócio:** ficam em **funções PL/pgSQL (RPC)**, constraints, triggers e **Edge Functions**; telas e hooks não decidem negócio.
 - **Autorização:** **RLS (Row Level Security)** em todas as tabelas expostas; `auth.uid()` e o papel do usuário definem o acesso. A chave pública (`anon`/publishable) pode ir no bundle; `service_role` nunca vai.
 - **Valores monetários** em centavos inteiros; **datas/horas** em `timestamptz` no Postgres e ISO-8601 UTC no SQLite; coordenadas em `geography(Point,4326)` (PostGIS).
@@ -77,12 +79,14 @@ Consequências normativas:
 
 ### 3.1 Conta e Perfil
 - **RF01** — Selecionar tipo de conta no cadastro (Cliente ou Profissional), direcionando para o formulário correspondente.
-- **RF02** — Cadastrar cliente via **Supabase Auth** (nome, email, telefone e senha, sem foto). O login é feito com e-mail/senha no Supabase; login via Google fica fora de escopo.
-- **RF03** — Cadastrar profissional via **Supabase Auth** (dados pessoais, foto de perfil no **Supabase Storage**, documentos para verificação em **bucket privado**, serviços oferecidos, **configuração de atendimento a domicílio: distância máxima e faixas de deslocamento** — ver RF26/RF27).
+- **RF02** — **Cadastrar conta (cliente) com nome e e-mail**, sem senha e sem telefone obrigatório: o servidor cria a conta no **Supabase Auth** e envia um **código de acesso** ao e-mail informado (RF33). A conta é ativada após a validação do código (RF34); telefone e demais dados são completados no perfil (RF04).
+- **RF03** — **Cadastrar profissional com nome e e-mail** (mesmo fluxo sem senha de RF02/RF33/RF34). Após o primeiro acesso, o profissional conclui o **onboarding** (dados pessoais, CPF, foto de perfil no **Supabase Storage**, documentos em **bucket privado**, serviços e **configuração de atendimento a domicílio: distância máxima e faixas** — ver RF26/RF27 e CU 1.3).
 - **RF04** — Editar perfil (cliente e profissional).
 - **RF05** — Cadastrar/editar serviços oferecidos (tipo, preço, duração).
 - **RF22** — Cliente cadastra **um único** endereço estruturado (rua, número, bairro, complemento, CEP), usado em todos os agendamentos.
 - **RF23** — Cliente **confirma o uso** do endereço cadastrado ao solicitar agendamento, podendo editá-lo antes de confirmar.
+- **RF33** — **Solicitar código de acesso.** Informado o e-mail, o servidor valida o formato, cria a conta se ainda não existir **sem revelar se o e-mail já está cadastrado**, gera um **código de 6 dígitos**, armazena apenas o **hash** com **validade de 1 ano** e envia o código por e-mail. Reenvios respeitam cooldown e invalidam o código anterior.
+- **RF34** — **Entrar com código de acesso.** O usuário digita o código recebido; o servidor valida hash, expiração (1 ano) e tentativas (máx. 5), marca o código como **usado** e abre a sessão do Supabase. O app guarda a sessão em `expo-secure-store` e mantém o usuário autenticado por até **1 ano** com refresh automático.
 
 ### 3.2 Serviços e Disponibilidade (Profissional)
 - **RF06** — Profissional cadastra dias e horários de disponibilidade (agenda).
@@ -117,7 +121,7 @@ Consequências normativas:
 
 | ID | Requisito |
 |----|-----------|
-| RNF01 | **Autenticação segura via Supabase Auth:** e-mail/senha com hash gerenciado (bcrypt), JWT de acesso + refresh rotativo e sessão em `expo-secure-store`; bloqueio após inatividade (opcional). |
+| RNF01 | **Autenticação sem senha via Supabase Auth + código de acesso por e-mail:** código de 6 dígitos gravado apenas como **hash SHA-256**, **uso único**, **validade de 1 ano**, máximo de **5 tentativas** por código e rate limit por e-mail/IP; sessão JWT + refresh rotativo em `expo-secure-store`, com duração de até **1 ano** e revogação em logout/troca de e-mail. |
 | RNF02 | Interface acessível: fontes ampliáveis, alto contraste e compatível com leitor de tela. |
 | RNF03 | Tempo de resposta da busca por profissionais **< 3 s** (Supabase + cache local), inclusive em condição de cache quente; cold start de Edge Functions deve ser evitado em rotas críticas. |
 | RNF04 | Aplicativo funcional em **Android**, construído com **React Native + Expo**. |
@@ -148,7 +152,7 @@ Consequências normativas:
 - **RN08** — O chat só fica disponível após uma solicitação de agendamento.
 - **RN09** — O profissional só visualiza o endereço completo após confirmar; antes, apenas **distância aproximada ou bairro**.
 
-### 5.2 Deslocamento, distância, decisão e arquitetura (v1.1/v1.4)
+### 5.2 Deslocamento, distância, decisão e arquitetura (v1.1/v1.4/v1.5)
 - **RN10 (composição da tarifa)** — O valor de deslocamento é o valor da **menor faixa cujo limite (km) ≥ distância calculada**. Ex.: distância 7,4 km → faixa *até 10 km* → R$ 8,00.
 - **RN11 (integridade das faixas)** — Cada faixa pertence a um profissional; deve ter `limite_km > 0`, `valor ≥ 0`, limites **estritamente crescentes e sem sobreposição**; um profissional com atendimento a domicílio ativo possui **≥ 1 faixa**; a **última faixa deve ser igual à distância máxima** (RN12). Faixas são editáveis a qualquer momento.
 - **RN12 (distância máxima)** — A distância máxima informada pelo profissional é o **teto de atendimento**: limita a exibição na busca (RF09), o recebimento de solicitações (RF30) e deve ser **≥ último limite de faixa** (validação no formulário e na RPC).
@@ -163,6 +167,7 @@ Consequências normativas:
 - **RN21 (isolamento de acesso)** — Cada requisição é autorizada pelo JWT do Supabase e filtrada por **RLS** e por papel (cliente/profissional/admin). O app nunca recebe dados de outro usuário por conveniência de cache.
 - **RN22 (minimização do cache local)** — O SQLite guarda apenas o necessário para leitura offline; endereço completo é cacheado somente quando o usuário tem direito (pós-aceite) e é limpo no logout/troca de conta.
 - **RN23 (RLS obrigatória)** — Toda tabela dos schemas expostos tem **Row Level Security habilitada** e políticas para `anon`/`authenticated`; acessos privilegiados usam RPC/Edge Functions com validação própria. `service_role` nunca é usada no cliente.
+- **RN24 (código de acesso — v1.5)** — O código tem **6 dígitos**, gerado por CSPRNG e gravado **apenas como hash SHA-256** em `codigo_acesso`, com `expira_em = now() + interval '1 year'`. É **de uso único**, permite no máximo **5 tentativas** (ao exceder, é invalidado e exige novo código), tem **cooldown de 60 s** entre envios e **rate limit** por e-mail e por IP. Solicitar novo código **invalida os anteriores**. A resposta de solicitação é **sempre genérica**, sem revelar se o e-mail possui conta. Troca de e-mail e logout global **revogam** códigos e sessões ativos. `codigo_acesso` tem RLS habilitada **sem políticas** para `anon`/`authenticated`: somente Edge Functions com `service_role` a acessam.
 
 ---
 
@@ -246,23 +251,26 @@ Efeitos: `confirmado` → bloqueia agenda (RN07), libera endereço completo (RF2
 ### 8.1 Conta e Perfil
 **CU 1.1 — Selecionar Tipo de Conta**
 *Ator:* usuário não autenticado · *Pré:* acessa a tela de cadastro.
-Fluxo: 1) seleciona "Cliente" ou "Profissional"; 2) Cliente → formulário simplificado (nome, email, telefone, senha ➕supabase); 3) Profissional → formulário completo (dados pessoais, foto, documentos, serviços, **distância máxima e faixas de deslocamento ➕**).
+Fluxo: 1) seleciona "Cliente" ou "Profissional"; 2) informa apenas **nome e e-mail** (sem senha e sem telefone) ➕v1.5; 3) recebe um **código de acesso** por e-mail e o digita para entrar (RF33/RF34); 4) após o primeiro acesso, o Cliente completa o perfil e o Profissional faz o **onboarding completo** (dados pessoais, foto, documentos, serviços, **distância máxima e faixas de deslocamento ➕**).
 
 **CU 1.2 — Cadastro de Cliente**
 *Ator:* Cliente · *Pré:* escolheu "Cliente".
-Fluxo: 1) email/senha; 2) nome, email, telefone e senha; 3) **Supabase Auth** valida e cria a conta; 4) trigger `handle_new_user` cria o registro em `usuario` e `cliente`; 5) app guarda a sessão no `expo-secure-store` e direciona à tela inicial.
+Fluxo: 1) nome e e-mail ➕v1.5; 2) Edge Function `solicitar-codigo-acesso` cria a conta no **Supabase Auth** (sem senha, `email_confirm: true`), dispara o trigger `handle_new_user` (registros em `usuario` e `cliente` com o nome informado) e gera o **código de acesso**; 3) o código é enviado por e-mail com **validade de 1 ano** e uso único; 4) usuário digita o código e a Edge Function `validar-codigo-acesso` valida hash/expiração/tentativas e abre a sessão; 5) app guarda a sessão no `expo-secure-store` e direciona à tela inicial.
 
 **CU 1.3 — Cadastro de Profissional**
 *Ator:* Profissional · *Pré:* escolheu "Profissional".
-Fluxo: 1) dados pessoais (nome, CPF, telefone, endereço de referência); 2) foto de perfil (bucket público do **Supabase Storage** ➕supabase); 3) documento de verificação (bucket privado com URL assinada ➕supabase); 4) serviços prestados **+ configuração de deslocamento (distância máxima e faixas) ➕**; 5) salva com status `pendente` no Supabase; 6) administrador ➕supabase aprova/reprova via RPC; 7) após aprovação, notifica via push (Edge Function) e libera o uso.
+Fluxo: 1) cadastro inicial com **nome e e-mail** (sem senha) e código de acesso ➕v1.5; 2) após entrar, onboarding com dados pessoais (CPF, telefone, endereço de referência); 3) foto de perfil (bucket público do **Supabase Storage** ➕supabase); 4) documento de verificação (bucket privado com URL assinada ➕supabase); 5) serviços prestados **+ configuração de deslocamento (distância máxima e faixas) ➕**; 6) salva com status `pendente` no Supabase; 7) administrador ➕supabase aprova/reprova via RPC; 8) após aprovação, notifica via push (Edge Function) e libera o uso.
 
-**CU 1.4 — Login** · *Ator:* Cliente/Profissional. 1) informa e-mail e senha; 2) **Supabase Auth** valida as credenciais; 3) app guarda a sessão JWT/refresh no `expo-secure-store`; 4) direciona à tela inicial do perfil.
+**CU 1.4 — Login sem senha (código de acesso)** ➕v1.5 · *Ator:* Cliente/Profissional. 1) informa o e-mail; 2) Edge Function `solicitar-codigo-acesso` envia um **código de 6 dígitos** (válido por **1 ano**, uso único; resposta genérica, sem revelar se a conta existe); 3) usuário digita o código; 4) Edge Function `validar-codigo-acesso` confere hash, expiração e tentativas e abre a sessão; 5) app guarda a sessão JWT/refresh no `expo-secure-store` e mantém o login por até **1 ano**; 6) direciona à tela inicial do perfil.
+*Fluxos alternativos:* código expirado/inválido → mensagem clara e opção de reenviar (cooldown de 60 s); 5 tentativas erradas → código invalidado; e-mail sem conta → o mesmo fluxo cria a conta (RF02/RF03), sem enumeração de usuários.
 
 **CU 1.5 — Editar Perfil** · *Ator:* Cliente/Profissional. 1) acessa edição; 2) altera nome, foto, descrição, endereço de referência, **distância máxima e faixas de deslocamento ➕**; 3) salva (mudanças de tarifa geram log — RNF09 ➕).
 
 **CU 1.6 — Cadastrar Endereço** · *Ator:* Cliente. 1) seção "Meu Endereço"; 2) CEP, rua, número, bairro, complemento; 3) salva como endereço único usado em todos os agendamentos; 4) editável a qualquer momento.
 
 **CU 1.7 — Aprovar/Reprovar Cadastro de Profissional** · *Ator:* Administrador · *Pré:* cadastro `pendente`. 1) lista pendentes (consulta protegida por RLS); 2) analisa dados e documento (URL assinada); 3) aprova ou reprova; 4) RPC `aprovar_profissional` atualiza status em transação, registra auditoria no Supabase e envia push.
+
+**CU 1.8 — Reenviar código de acesso** ➕v1.5 · *Ator:* Cliente/Profissional. 1) na tela do código, toca em "Reenviar"; 2) o app respeita o **cooldown de 60 s** e o **rate limit** por e-mail/IP; 3) o servidor invalida o código anterior e envia um novo (validade de 1 ano); 4) a interface informa o tempo restante para novo envio.
 
 ### 8.2 Serviços e Disponibilidade (Profissional)
 **CU 2.1 — Cadastrar/Editar Serviço** · 1) seção "Meus Serviços"; 2) adiciona/edita com tipo, preço e duração; 3) salva (PostgREST + RLS).
@@ -326,11 +334,12 @@ Fluxo: 1) dados pessoais (nome, CPF, telefone, endereço de referência); 2) fot
 
 ## 9. Modelo de Domínio
 
-### 9.1 Entidades (atributos **negrito** = novos na v1.1; `➕supabase` = adaptação da v1.4)
+### 9.1 Entidades (atributos **negrito** = novos na v1.1; `➕supabase` = adaptação da v1.4; `➕v1.5` = autenticação sem senha)
 
 > Entidades de domínio têm `id UUID` e `atualizado_em` (`timestamptz`); as sincronizáveis têm `criado_em` e, quando aplicável, `excluido_em` (exclusão lógica). Logs de auditoria são imutáveis (`criado_em` apenas).
 
-**Usuário (conta em `auth.users` + perfil público) ➕supabase:** `id` (= `auth.users.id`), `tipo (cliente|profissional|admin)`, `email (único)`, `ativo`. A senha e o refresh token são gerenciados pelo **Supabase Auth** (sem `senha_hash` no schema público).
+**Usuário (conta em `auth.users` + perfil público) ➕supabase:** `id` (= `auth.users.id`), `tipo (cliente|profissional|admin)`, `email (único)`, `ativo`. **Não há senha:** a autenticação é por **código de acesso** e a sessão/refresh token são gerenciados pelo **Supabase Auth** (sem `senha_hash` no schema público).
+**CódigoAcesso ➕v1.5:** `id`, `usuário (ref)`, `email`, `codigo_hash (SHA-256)`, `expira_em` (1 ano), `usado_em`, `tentativas`, `revogado_em`, `criado_em`.
 **DispositivoPush ➕supabase:** `id`, `usuário (ref)`, `expo_push_token`, `plataforma`, `último_uso_em`, `revogado_em`
 **Cliente:** `id`, `usuário (ref)`, `nome`, `telefone`, `endereço (1:1)`
 **Endereço:** `id`, `cliente (1:1)`, `cep`, `rua`, `número`, `complemento`, `bairro`, `cidade`, `localização ➕supabase`
@@ -357,6 +366,7 @@ Fluxo: 1) dados pessoais (nome, CPF, telefone, endereço de referência); 2) fot
 - Profissional → **define (1:N) → FaixaDeslocamento** 🆕
 - Profissional → possui → Foto do Portfólio · Profissional → atende → Agendamento
 - Serviço → compõe → Agendamento · Agendamento → gera → Avaliação · Agendamento → contém → Mensagem
+- Usuário → recebe (1:N) → **CódigoAcesso** 🆕
 
 ### 9.3 Diagrama ER
 
@@ -373,6 +383,16 @@ erDiagram
     SERVICO ||--o{ AGENDAMENTO : "compõe"
     AGENDAMENTO ||--o| AVALIACAO : gera
     AGENDAMENTO ||--o{ MENSAGEM : contém
+    USUARIO ||--o{ CODIGO_ACESSO : "recebe"
+    CODIGO_ACESSO {
+      uuid id PK
+      uuid usuario_id FK
+      string email
+      string codigo_hash
+      timestamptz expira_em
+      timestamptz usado_em
+      int tentativas
+    }
     FAIXA_DESLOCAMENTO {
       uuid id PK
       uuid profissional_id FK
@@ -397,7 +417,7 @@ erDiagram
     }
 ```
 
-### 9.4 Convenções de persistência (v1.4) — Supabase (autoridade) + SQLite (cache)
+### 9.4 Convenções de persistência (v1.4/v1.5) — Supabase (autoridade) + SQLite (cache)
 
 | Aspecto | Supabase PostgreSQL (fonte de verdade) | SQLite local (`expo-sqlite` + Drizzle) |
 |---------|----------------------------------------|----------------------------------------|
@@ -408,7 +428,7 @@ erDiagram
 | Data/hora | `TIMESTAMPTZ` | `TEXT` ISO-8601 UTC (`AAAA-MM-DDTHH:mm:ss.sssZ`) |
 | Data de agenda | `DATE`; horas `TIME` | `TEXT` `AAAA-MM-DD`; hora `HH:mm` |
 | Booleano | `BOOLEAN` | `INTEGER` `0/1` com `CHECK` |
-| Autenticação | **Supabase Auth** (`auth.users`, JWT, refresh); perfil em `public.usuario` | Sessão em `expo-secure-store`; sem senha |
+| Autenticação | **Supabase Auth** sem senha (`auth.users`, JWT, refresh) + **`codigo_acesso`** (hash, validade 1 ano, uso único); perfil em `public.usuario` | Sessão em `expo-secure-store`; sem senha e sem código persistido |
 | Autorização | **RLS** + `auth.uid()` + `service_role` só em Edge Functions | Respeita o que o servidor devolveu; nunca eleva privilégio |
 | Imagens/documentos | **Supabase Storage** (bucket público para portfólio; privado para documentos; URL assinada) | Apenas URLs/caminhos de cache; sem documento sensível persistido |
 | Migrações | **Supabase CLI** (`supabase migration`, `supabase db push`) | `drizzle-kit` para SQLite + migrations versionadas |
@@ -427,7 +447,8 @@ erDiagram
 
 | RF | RN | CU | Teste mínimo |
 |----|----|----|--------------|
-| RF01–RF02 | RN23 | 1.1, 1.2 | cadastro completo/incompleto; trigger cria perfil |
+| RF01–RF02 | RN23, **RN24** | 1.1, 1.2 | cadastro com nome+e-mail; trigger cria perfil; código enviado |
+| **RF33–RF34** | **RN24** | **1.4, 1.8** | código válido/1 ano; expirado; reuso; 5 tentativas; cooldown; anti-enumeração |
 | RF03 | RN04, RN05, RN23 | 1.3, **2.5** | CPF duplicado; sem faixa ⇒ não publicado |
 | RF04 | — | 1.5 | editar dist. máxima e tarifas + log |
 | RF05 | — | 2.1 | serviço com duração/preço inválidos |
@@ -456,9 +477,9 @@ erDiagram
 
 ---
 
-## 11. Fora de Escopo (v1.4) e Trabalhos Futuros
+## 11. Fora de Escopo (v1.5) e Trabalhos Futuros
 
-**Não será construído agora:** sistema de denúncias/suporte; vínculo com salões/estabelecimentos; suporte a iOS; **aceite automático de agendamento**; **pagamento/in-app checkout**; múltiplos endereços por cliente; IPTAX/geocodificação offline própria; **login Google**; **criptografia do banco local (SQLCipher)**; **modo totalmente offline com escrita crítica**; **sincronização peer-to-peer**.
+**Não será construído agora:** sistema de denúncias/suporte; vínculo com salões/estabelecimentos; suporte a iOS; **aceite automático de agendamento**; **pagamento/in-app checkout**; múltiplos endereços por cliente; IPTAX/geocodificação offline própria; **login por senha** (substituído pelo código de acesso na v1.5); **login Google**; **criptografia do banco local (SQLCipher)**; **modo totalmente offline com escrita crítica**; **sincronização peer-to-peer**.
 
 **Trabalhos futuros (herdados do PDF seção 12 + v1.1 + v1.4):**
 - Denúncias e moderação de contas.
@@ -468,6 +489,7 @@ erDiagram
 - **Promoções/faixas sazonais** e deslocamento por rota real (não por distância em linha reta).
 - Repasse/pagamento integrado do valor de deslocamento.
 - **Login Google** e autenticação federada (quando habilitado no Supabase Auth).
+- **Passkeys/WebAuthn** como segundo fator opcional para reduzir o risco de e-mail comprometido.
 - **Criptografia em repouso** do SQLite (SQLCipher) e rotação automática de chaves.
 - **Branches de banco do Supabase** para preview por PR (quando o plano permitir).
 
@@ -488,6 +510,7 @@ erDiagram
 11. **Migração de schema** via Supabase CLI preserva dados e é executada em transação (RNF13/RN17).
 12. Nenhuma tela escreve SQL direto: acesso passa pelo **Supabase Client/RPC**, regras ficam no banco/Edge Functions.
 13. **RLS:** nenhum acesso retorna dados de outro usuário; testes por perfil (anônimo, cliente, profissional, admin) passam.
+14. **Autenticação sem senha:** cadastro com apenas **nome + e-mail**; código de acesso **hasheado**, **uso único**, validade de **1 ano**, limite de **5 tentativas** e rate limit; nenhuma resposta permite descobrir se um e-mail já tem conta; sessão revogável e persistida em `expo-secure-store`.
 
 ---
 
@@ -500,3 +523,4 @@ erDiagram
 | **1.2** | **2026-10-29** | **Adaptação para React Native + Expo com SQLite local:** operação offline, notificações locais, login local e ausência de backend. Ajustados RNF03, RNF06, RNF07, RNF09, RNF12, RNF13; adicionados RN17/RN18 e convenções de persistência (9.4). | RF02, RF03, RF14, RF31; RNF01–RNF13; RN17–RN18; CU 1.1, 1.2, 1.3, 1.4, 1.7, 3.7, 4.1; §2.4, §9.4, §11, §12 |
 | **1.3** | **2026-10-29** | **Arquitetura híbrida:** Neon PostgreSQL como fonte de verdade, API Express/TypeScript no Render, SQLite/Drizzle como cache/outbox; login server-side, push Expo, uploads Cloudinary/bucket privado, sincronização idempotente e autoridade do servidor em escritas críticas. | RF02, RF03, RF11, RF14, RF31, **RF32**; RNF01–RNF15; RN17–RN22; CU 1.1–1.4, 1.7, 3.4–3.7, 4.1; §2.4, §7, §9.1–9.4, §10, §11, §12 |
 | **1.4** | **2026-11-08** | **Backend consolidado no Supabase:** PostgreSQL, Auth, Storage, Realtime e Edge Functions substituem Neon + API Express/Render e Cloudinary; RPC transacional para escritas críticas; RLS obrigatória (RN23); `pg_cron` para expiração; PostGIS para distância; sincronização e chat com Realtime. | RF02, RF03, RF11, RF14, RF15, RF19, RF28, RF31, RF32; RNF01–RNF15; RN13, RN17–RN23; CU 1.2–1.4, 1.7, 2.3, 3.1, 3.4–3.7, 4.1; §1.3, §2.2, §2.4, §6.2, §7, §9, §10, §11, §12 |
+| **1.5** | **2026-11-19** | **Autenticação sem senha:** cadastro reduzido a **nome + e-mail** e login por **código de acesso** enviado por e-mail, com **validade de 1 ano**, uso único, hash SHA-256, limite de tentativas e rate limit; sessão de até 1 ano em `expo-secure-store`; onboarding do profissional move os dados completos para depois do primeiro acesso; tabela `codigo_acesso` com RLS deny-all; login por senha removido. | RF02, RF03, **RF33, RF34**; RNF01; **RN24**; CU 1.1–1.4, **1.8**; §1.3, §2.4, §9.1–9.4, §10, §11, §12 |

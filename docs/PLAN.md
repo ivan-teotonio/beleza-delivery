@@ -1,11 +1,12 @@
 # 🗺️ Plano de Implementação (PLAN)
 
 **Projeto:** App de Agendamento de Serviços de Beleza a Domicílio
-**Versão:** 4.0 · **Última atualização:** 2026-11-08
-**Fonte do escopo:** `docs/SPEC.md` (v1.4) · **Restrições:** `docs/CONSTITUTION.MD` (v1.3) · **Execução:** `docs/TASK.md`
+**Versão:** 5.0 · **Última atualização:** 2026-11-19
+**Fonte do escopo:** `docs/SPEC.md` (v1.5) · **Restrições:** `docs/CONSTITUTION.MD` (v1.4) · **Execução:** `docs/TASK.md`
 
 > Este documento responde **como** entregar a SPEC. Mudanças aqui são baratas; mudanças na SPEC exigem o fluxo da Constituição (seção 1).
 > **Decisão estruturante da v4.0:** arquitetura **Supabase-first** — o **Supabase** fornece PostgreSQL (fonte de verdade), Auth, Storage, Realtime, RPC e Edge Functions; o app **React Native + Expo** usa **SQLite (`expo-sqlite`) + Drizzle** apenas como cache/outbox. Ver SPEC §2.4 e Constituição C13–C19.
+> **Decisão estruturante da v5.0:** **autenticação sem senha** — cadastro com **nome + e-mail** e login por **código de acesso** de 6 dígitos enviado por e-mail (validade de 1 ano, uso único, hash SHA-256). Ver SPEC v1.5 (RF33/RF34, RN24) e Constituição C04.
 
 ---
 
@@ -19,13 +20,14 @@
 | A4 | Schema remoto | **SQL migrations via Supabase CLI** em `supabase/migrations`; tipos TypeScript gerados com `supabase gen types typescript`; sem ORM remoto | Marco M0 |
 | A5 | Cache local | **`expo-sqlite` + `drizzle-orm/expo-sqlite`**; schema/migrações com `drizzle-kit` | Marco M0 |
 | A6 | Validação/contratos | **Zod** compartilhado em `packages/shared`; tipos gerados do banco; contratos de RPC/Edge Functions | Marco M0 |
-| A7 | Autenticação | **Supabase Auth**: e-mail/senha, JWT access + refresh, hash bcrypt gerenciado; sessão em `expo-secure-store` | Marco M1 |
+| A7 | Autenticação | **Supabase Auth sem senha** + **código de acesso por e-mail** (6 dígitos, hash SHA-256, uso único, validade de 1 ano, 5 tentativas, rate limit); sessão JWT + refresh em `expo-secure-store` por até 1 ano | Marco M1 |
 | A8 | Geolocalização | `expo-location` + **PostGIS no Supabase** (`ST_Distance`/`ST_DWithin`); prévia no app com módulo compartilhado | Marco M3 |
 | A9 | Notificações | **Expo Push** + **Edge Function** disparada por Database Webhook; fallback local | Marco M5 |
 | A10 | Arquivos | **Supabase Storage**: bucket público `portfolio` (fotos) e bucket privado `documentos` (URL assinada) | Marco M2 |
 | A11 | Navegação/estado | **Expo Router** + React Context/hooks + `supabase-js`; sem lib global pesada | Marco M0 |
 | A12 | Testes | **Vitest** (shared/app), **Jest + jest-expo + RNTL**, **Maestro**, **k6** (PostgREST/RPC), **better-sqlite3**, **pgTAP** (RLS/RPC) e **Supabase local** | Marco M0 |
 | A13 | Deploy | **Supabase** (DB/Auth/Storage/Functions) + **EAS** (Android); CI GitHub Actions | Marco M0 |
+| A14 | E-mail transacional | **Resend** (ou SMTP equivalente) acionado por Edge Function; template com o código de acesso, domínio verificado e fallback de reenvio | Marco M1 |
 
 > Se A2–A4 mudarem, a SPEC funcional continua válida; muda a infraestrutura. **Entretanto, C13–C15 tornam Supabase + API Supabase + SQLite-cache restrições atuais.**
 
@@ -46,8 +48,8 @@ flowchart LR
         RPC["RPC\nPL/pgSQL transacional"]
         RT["Realtime\nchat + status"]
         STOR["Storage\nfotos + documentos"]
-        AUTH["Auth\nJWT + refresh"]
-        FN["Edge Functions\npush + integrações"]
+        AUTH["Auth\nJWT + refresh\nsem senha"]
+        FN["Edge Functions\npush + e-mail\n+ código de acesso"]
         PG[("PostgreSQL\nfonte de verdade\nRLS + constraints")]
         CRON["pg_cron\nexpiração"]
     end
@@ -93,7 +95,7 @@ flowchart LR
 
 | Área | Tabelas/Views (PostgREST) | RPCs / Edge Functions |
 |------|---------------------------|------------------------|
-| Auth | `auth.users` (Supabase Auth) | Trigger `handle_new_user`; RPC `meu_perfil` |
+| Auth | `auth.users` (Supabase Auth) + `codigo_acesso` (sem acesso direto) | Trigger `handle_new_user`; RPC `meu_perfil`; Edge Functions `solicitar-codigo-acesso` e `validar-codigo-acesso` |
 | Perfil | `usuario`, `cliente`, `profissional`, `endereco` | `salvar_config_deslocamento`, `aprovar_profissional` |
 | Catálogo | `servico`, `foto_portfolio` (Storage) | — |
 | Agenda | `agenda`, view `horarios_disponiveis` | `salvar_agenda` (opcional) |
@@ -115,7 +117,7 @@ beleza-delivery/
 ├── apps/
 │   └── mobile/                    # Expo (React Native + TypeScript)
 │       ├── app/                   # rotas Expo Router
-│       │   ├── (auth)/            # login, cadastro, seleção de perfil
+│       │   ├── (auth)/            # cadastro (nome+e-mail), código de acesso, seleção de perfil
 │       │   ├── (cliente)/         # busca, agendamento, histórico, chat
 │       │   ├── (profissional)/    # agenda, serviços, faixas, solicitações
 │       │   ├── (admin)/           # aprovação de profissionais
@@ -136,7 +138,9 @@ beleza-delivery/
 ├── supabase/
 │   ├── migrations/                # SQL versionado (schema, RLS, RPC, triggers)
 │   ├── functions/
-│   │   └── push/                  # Edge Function (Expo Push)
+│   │   ├── push/                  # Edge Function (Expo Push)
+│   │   ├── solicitar-codigo-acesso/  # gera hash, envia e-mail, cria conta
+│   │   └── validar-codigo-acesso/    # valida código e abre sessão
 │   ├── seed.sql                   # seed idempotente
 │   ├── tests/                     # pgTAP (RLS/RPC/constraints)
 │   └── config.toml
@@ -166,6 +170,21 @@ CREATE TABLE usuario (
   atualizado_em timestamptz NOT NULL DEFAULT now(),
   excluido_em   timestamptz
 );
+
+-- Código de acesso (v1.5): autenticação sem senha, acesso somente por Edge Function
+CREATE TABLE codigo_acesso (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id    uuid NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+  email         text NOT NULL,
+  codigo_hash   text NOT NULL,               -- SHA-256(codigo + pepper)
+  expira_em     timestamptz NOT NULL DEFAULT (now() + interval '1 year'),
+  usado_em      timestamptz,
+  tentativas    integer NOT NULL DEFAULT 0,
+  revogado_em   timestamptz,
+  criado_em     timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX codigo_acesso_email_idx ON codigo_acesso (lower(email), criado_em DESC);
+CREATE INDEX codigo_acesso_expira_idx ON codigo_acesso (expira_em);
 
 CREATE TABLE dispositivo (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -372,6 +391,8 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 ```
 
+> **Cadastro v1.5:** a Edge Function `solicitar-codigo-acesso` cria o usuário com `user_metadata = { nome, tipo }` e `email_confirm: true`; o trigger acima preenche `usuario` e `cliente`. O profissional **não** ganha linha em `profissional` no signup — o onboarding (CU 1.3) cria o perfil completo via RPC `criar_perfil_profissional`.
+
 ### 4.1 RLS (Row Level Security)
 
 **Todas** as tabelas de `public` têm RLS habilitada. Funções auxiliares:
@@ -390,6 +411,7 @@ ALTER TABLE avaliacao ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mensagem ENABLE ROW LEVEL SECURITY;
 ALTER TABLE foto_portfolio ENABLE ROW LEVEL SECURITY;
 ALTER TABLE log_auditoria ENABLE ROW LEVEL SECURITY;
+ALTER TABLE codigo_acesso ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION is_admin() RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -422,6 +444,7 @@ $$;
 | `mensagem` | participantes do agendamento | participantes; só após solicitação |
 | `avaliacao` | público | cliente do agendamento concluído |
 | `log_auditoria` | admin | somente triggers/RPC (`SECURITY DEFINER`) |
+| `codigo_acesso` | **nenhum** (deny-all) | **nenhum**; somente Edge Functions com `service_role` |
 
 **Exemplo de política crítica — endereço liberado só após aceite:**
 
@@ -445,6 +468,14 @@ CREATE POLICY endereco_select ON endereco FOR SELECT USING (
 ```sql
 REVOKE INSERT, UPDATE, DELETE ON agendamento FROM anon, authenticated;
 GRANT SELECT ON agendamento TO authenticated;
+```
+
+**Tabela interna de autenticação (v1.5) — deny-all:**
+
+```sql
+-- Nenhuma política para anon/authenticated: RLS habilitada = tudo negado.
+REVOKE ALL ON codigo_acesso FROM anon, authenticated;
+-- Apenas service_role (Edge Functions) acessa.
 ```
 
 ### 4.2 RPCs transacionais
@@ -570,6 +601,40 @@ SELECT cron.schedule(
 );
 ```
 
+### 4.2.1 Edge Functions de autenticação (v1.5)
+
+**`solicitar-codigo-acesso`** — `POST` público (CORS restrito + rate limit).
+
+| Item | Contrato |
+|------|----------|
+| Request | `{ "nome": string, "email": string, "tipo": "cliente" \| "profissional" }` |
+| Response `200` | `{ "ok": true, "reenviar_em": number }` — **sempre genérica**, exista ou não a conta |
+
+Passos:
+1. Normaliza/valida e-mail (Zod); aplica **rate limit** por e-mail (3/15 min) e por IP (10/h) e **cooldown de 60 s**.
+2. Se o usuário não existir, cria via `auth.admin.createUser({ email, email_confirm: true, user_metadata: { nome, tipo } })` — o trigger `handle_new_user` cria `usuario`/`cliente`.
+3. Revoga códigos anteriores do e-mail (`revogado_em = now()`).
+4. Gera **6 dígitos** com CSPRNG, calcula `sha256(codigo + CODIGO_PEPPER)` e insere em `codigo_acesso` com `expira_em = now() + interval '1 year'`.
+5. Envia e-mail (Resend/SMTP) com o código e a validade; **nunca** registra o código em log.
+6. Responde `200 { ok: true }` (anti-enumeração).
+
+**`validar-codigo-acesso`** — `POST` público (rate limit).
+
+| Item | Contrato |
+|------|----------|
+| Request | `{ "email": string, "codigo": string }` |
+| Response `200` | `{ "token_hash": string, "email": string }` |
+
+Passos:
+1. Rate limit por e-mail/IP; busca o código ativo mais recente (`usado_em IS NULL`, `revogado_em IS NULL`, `expira_em > now()`).
+2. Compara o hash em tempo constante; erro genérico `"código inválido ou expirado"`.
+3. `tentativas += 1`; ao atingir **5**, revoga o código.
+4. Marca `usado_em = now()` (uso único).
+5. `auth.admin.generateLink({ type: 'magiclink', email })` → devolve `hashed_token`.
+6. App chama `supabase.auth.verifyOtp({ token_hash, type: 'magiclink' })` e recebe a sessão.
+
+**Segredos e sessão:** `SUPABASE_SERVICE_ROLE_KEY`, `CODIGO_PEPPER` e `RESEND_API_KEY` ficam apenas nos secrets das Edge Functions. A sessão usa JWT curto (1 h) + refresh rotativo, com duração máxima de **1 ano**; logout revoga o refresh local e "sair de todos os dispositivos" chama `auth.admin.signOut(userId, 'global')`.
+
 ### 4.3 Storage (bucket e políticas)
 
 | Bucket | Acesso | Uso |
@@ -630,7 +695,9 @@ Regras locais: `foreign_keys = ON`, `journal_mode = WAL`, dinheiro em centavos, 
 - **Supabase (schema):** `supabase migration new <nome>`; revisar SQL de schema + RLS + RPC no PR; aplicar com `supabase db push` (local: `supabase start` já aplica). Nunca alterar schema manualmente no Dashboard em produção.
 - **Tipos:** `supabase gen types typescript --local > packages/shared/src/database.types.ts` (ou `--project-id` para o remoto).
 - **SQLite:** migrations geradas por `drizzle-kit` em `apps/mobile/src/db/migrations`, aplicadas no boot com controle de versão e transação; falha = rollback + tela de erro amigável.
-- **Seed:** `supabase/seed.sql` idempotente (admin, profissionais aprovados com faixas, serviços e agenda demo) para desenvolvimento/demo.
+- **Seed:** `supabase/seed.sql` idempotente (admin, profissionais aprovados com faixas, serviços e agenda demo) para desenvolvimento/demo. **v1.5:** o seed não cria mais senhas; contas demo entram pelo fluxo de código (em desenvolvimento, a Edge Function pode usar um código fixo `000000` **somente** com `DEMO_MODE=true`).
+- **E-mail do código (v1.5):** Edge Functions `solicitar-codigo-acesso`/`validar-codigo-acesso` com secrets `CODIGO_PEPPER`, `RESEND_API_KEY` e `SUPABASE_SERVICE_ROLE_KEY`; template com o código e a validade de 1 ano; domínio verificado e fallback de reenvio.
+- **Limpeza de códigos (v1.5):** job diário no `pg_cron` remove `codigo_acesso` com `expira_em < now() - interval '90 days'`, preservando apenas agregados de auditoria.
 - **Backup remoto (RNF06):** PITR/branches do Supabase; teste de restore trimestral documentado.
 - **Backup local (contingência):** exportar `.db` consistente (`VACUUM INTO`) via `expo-sharing`; importar via `expo-document-picker` com validação de versão.
 - **Imagens:** comprimir no cliente (`expo-image-manipulator`) e enviar ao bucket `portfolio`; URLs públicas com transformação; apagar órfãos ao excluir portfólio/conta.
@@ -644,7 +711,7 @@ Regras locais: `foreign_keys = ON`, `journal_mode = WAL`, dinheiro em centavos, 
 | Marco | Nome | Entregáveis | RFs cobertos |
 |-------|------|-------------|--------------|
 | **M0** | Fundação | Monorepo, Expo + Router, projeto Supabase + CLI + stack local, migrations com RLS/RPC iniciais, `packages/shared`, CI, deploy Supabase/EAS | — |
-| **M1** | Conta, Perfil e Admin | Supabase Auth, trigger de perfil, perfis, endereço único, configuração de deslocamento, upload de documentos (Storage), aprovação admin | RF01–RF04, RF21, RF22, **RF26, RF27** |
+| **M1** | Conta, Perfil e Admin | Supabase Auth **sem senha + código de acesso por e-mail (validade 1 ano)**, trigger de perfil, perfis, endereço único, configuração de deslocamento, upload de documentos (Storage), aprovação admin | RF01–RF04, **RF33, RF34**, RF21, RF22, **RF26, RF27** |
 | **M2** | Serviços, Agenda e Portfólio | CRUD de serviços/agenda via PostgREST + RLS, disponibilidade, portfólio no Storage | RF05, RF06, RF19 |
 | **M3** | Busca e Disponibilidade | PostGIS (`buscar_profissionais`), filtro por distância máxima, ordenação, filtros, calendário | RF07–RF10, **RF30** |
 | **M4** | Agendamento e Deslocamento | RPC `solicitar_agendamento`, valores congelados, aceite/recusa, expiração via `pg_cron`, constraints de sobreposição, logs | RF11–RF14, RF23–RF25, **RF28, RF29, RF31** |
@@ -660,11 +727,12 @@ Regras locais: `foreign_keys = ON`, `journal_mode = WAL`, dinheiro em centavos, 
 |-------|-----------|------|------------------------------|
 | Unitário (shared/app) | **Vitest** | `deslocamento`, regras de validação | Tabela SPEC §6.3 (3,2; 7,4; 18; 25 km); fronteira 10,0 km; sem faixas; máx. < faixa |
 | Contrato | Vitest + Zod | payloads de RPC/outbox | request/response válidos e inválidos; erros tipados |
+| Auth (v1.5) | Vitest + Supabase local | Edge Functions de código | código válido/1 ano; expirado; reuso; 5 tentativas; cooldown; anti-enumeração; sessão revogada |
 | Banco/RLS | **pgTAP** + Supabase local | políticas, RPCs, constraints, triggers | anon não lê dados privados; cliente não vê agendamento alheio; endereço só pós-aceite; admin aprova |
 | Integração RPC | Vitest + Supabase local | transações e concorrência | dupla reserva rejeitada; rollback; idempotência; expiração concorrente |
 | Integração SQLite | Vitest + `better-sqlite3` | schema local/outbox | migrations; outbox idempotente; pull por cursor |
 | UI | Jest + `jest-expo` + RNTL | telas/fluxos | solicitação → aceite → endereço liberado; offline bloqueia escrita crítica |
-| E2E | Maestro (Android) | fluxos críticos | cadastro → busca → solicitar → aceitar/recusar; expiração; sync ao reconectar |
+| E2E | Maestro (Android) | fluxos críticos | cadastro (nome+e-mail → código) → busca → solicitar → aceitar/recusar; expiração; sync ao reconectar |
 | Acessibilidade | TalkBack + Accessibility Scanner | todas as telas | foco, rótulos, contraste AA, alvos ≥ 48 dp |
 | Performance | **k6** (PostgREST/RPC) + benchmark | 1.000 usuários simultâneos | busca < 3 s; p95 de RPCs críticas; taxa de erro < 1% |
 | Backup/Restore | Script de integração | Supabase + SQLite | restore de branch/PITR; exportar → restaurar `.db` |
@@ -690,16 +758,31 @@ Regras locais: `foreign_keys = ON`, `journal_mode = WAL`, dinheiro em centavos, 
 | Distância em linha reta subestima deslocamento | Cobrança injusta | Exibir "aproximada" (RN13); rota real como evolução (SPEC §11) |
 | Faixas inconsistentes | Cobrança errada | Validação RN11/RN12 no app e na RPC + prévia (CU 2.5) + testes + validação transacional |
 | Exclusão de conta vs. histórico | Perda/retenção indevida | Anonimização; logs com ator nulo; política LGPD documentada |
+| **E-mail comprometido** (fator único de autenticação) | Tomada de conta | Código de uso único + 5 tentativas + rate limit; sessão revogável; aviso de novo acesso; passkeys como evolução (SPEC §11) |
+| **Código válido por 1 ano** (janela longa) | Reuso/força bruta | Hash SHA-256 + pepper; uso único; invalidação a cada reenvio; 5 tentativas; rate limit por e-mail/IP; limpeza periódica |
+| **Entrega de e-mail** (spam/limite do provedor) | Usuário não recebe o código | Domínio verificado (SPF/DKIM/DMARC), provedor transacional (A14), reenvio com cooldown e suporte |
 
 ## 9. Entrega Contínua
 
 - `main` protegida: PR + CI verde + DoD + task atualizada.
 - **Pipeline:** lint/typecheck/testes → `supabase db push` (projeto de teste/produção) → `supabase functions deploy push` → build mobile (EAS).
 - **Ambientes:** local (`supabase start`), preview (projeto/branch Supabase separado + EAS preview), produção (projeto Supabase + EAS production).
-- Versões: `v0.x` internas por marco; **`v1.0`** = M1–M6 completos; **`v1.4`** = SPEC v1.4 (Supabase-first); **`v1.4-hardened`** = M7.
+- Versões: `v0.x` internas por marco; **`v1.0`** = M1–M6 completos; **`v1.4`** = SPEC v1.4 (Supabase-first); **`v1.5`** = SPEC v1.5 (login sem senha); **`v1.5-hardened`** = M7.
 - Changelog alimentado pelo *Registro de Mudanças* da SPEC (seção 13).
 - Build Android via `eas build` (perfil `preview` para testes internos, `production` para release).
 
 ## 10. Fora deste Plano
 
 Tudo listado em `SPEC.md` §11 (denúncias, salões, iOS, auto-aceite, pagamento integrado, Google, SQLCipher, modo totalmente offline com escrita crítica, sincronização peer-to-peer). Alterações aqui **não** alteram a SPEC.
+
+---
+
+## 11. Registro de Mudanças deste arquivo
+
+| Versão | Data | Mudança |
+|--------|------|---------|
+| 1.0 | — | Plano inicial derivado da SPEC v1.0. |
+| 2.0 | 2026-10-29 | Adaptação para React Native + Expo + SQLite local. |
+| 3.0 | 2026-10-29 | Arquitetura híbrida (Neon + API Express + SQLite/outbox). |
+| 4.0 | 2026-11-08 | **Supabase-first:** PostgREST/RPC/Storage/Realtime/Edge Functions, RLS, `pg_cron` e PostGIS. |
+| 5.0 | 2026-11-19 | **Autenticação sem senha:** A7 e A14 (e-mail transacional), diagrama, contrato da API, tabela `codigo_acesso` (RLS deny-all), Edge Functions `solicitar-codigo-acesso`/`validar-codigo-acesso`, sessão de 1 ano, testes, riscos e marcos atualizados. |

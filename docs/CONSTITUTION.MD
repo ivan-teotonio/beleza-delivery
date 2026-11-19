@@ -1,7 +1,7 @@
 # 🏛️ Constituição do Projeto
 
 **Projeto:** App de Agendamento de Serviços de Beleza a Domicílio para Pessoas com Dificuldade de Mobilidade
-**Documento:** `docs/CONSTITUTION.MD` (v1.3 — origem: `documentacao.pdf`, adaptada para **Expo + SQLite local + Supabase (PostgreSQL, Auth, Storage, Realtime e Edge Functions)**)
+**Documento:** `docs/CONSTITUTION.MD` (v1.4 — origem: `documentacao.pdf`, adaptada para **Expo + SQLite local + Supabase (PostgreSQL, Auth, Storage, Realtime e Edge Functions)**)
 **Natureza:** Princípios e restrições **inegociáveis**. Alterar este documento exige justificativa registrada em `docs/SPEC.md` (seção *Registro de Mudanças*) e aprovação explícita do responsável pelo projeto.
 
 ---
@@ -46,7 +46,7 @@ CONSTITUTION.MD  →  SPEC.md  →  PLAN.md  →  TASK.md  →  código  →  ve
 | C01 | Aplicativo **Android** construído com **React Native + Expo** (RNF04). |
 | C02 | **Acessibilidade:** fontes ampliáveis, alto contraste, compatível com **TalkBack** via APIs de acessibilidade do React Native (RNF02, RNF08). |
 | C03 | **LGPD** para todos os dados pessoais (RNF05) + **backup remoto no Supabase** (PITR/branches) e **exportação local** do SQLite (RNF06). |
-| C04 | **Autenticação via Supabase Auth** (RNF01): e-mail/senha com hash gerenciado pelo Supabase (bcrypt), JWT de acesso/refresh e sessão em `expo-secure-store`. Login Google fica fora do escopo até decisão explícita. |
+| C04 | **Autenticação via Supabase Auth, sem senha (v1.5)** (RNF01): cadastro com **nome + e-mail** e login por **código de acesso de 6 dígitos** enviado ao e-mail, com **validade de 1 ano**, **uso único**, hash SHA-256, limite de 5 tentativas e rate limit (RN24). A sessão usa **JWT de acesso + refresh rotativo**, fica em `expo-secure-store` por até **1 ano** e é revogável. Login por senha e Google ficam fora do escopo até decisão explícita. |
 | C05 | **Logs de auditoria** em ações sensíveis: confirmação/cancelamento, aprovação/reprovação de profissional, aceite/recusa, expiração e alteração de tarifas (RNF09). Persistidos no **Supabase PostgreSQL**; espelho local quando necessário para offline. |
 | C06 | **CPF único** para profissional (RN04). |
 | C07 | **Endereço único por cliente**, sempre revisado e confirmado antes de cada solicitação (RF22, RF23). |
@@ -61,7 +61,7 @@ CONSTITUTION.MD  →  SPEC.md  →  PLAN.md  →  TASK.md  →  código  →  ve
 | C16 | **Valores monetários em centavos inteiros**; IDs **UUID** (`gen_random_uuid()`); datas em `timestamptz` no Postgres e ISO-8601 UTC no SQLite. |
 | C17 | **Escritas críticas são server-authoritative:** solicitar, aceitar, recusar, cancelar, concluir e expirar só mudam de estado após transação confirmada no **Supabase PostgreSQL**, via RPC (RN18/RN19). |
 | C18 | **Segredos e dados sensíveis** nunca aparecem em log, crash report, notificação ou cache indevido. Uploads usam **Supabase Storage** com URLs assinadas; documentos de verificação ficam em **bucket privado**. |
-| C19 | **RLS obrigatória e testada:** nenhuma tabela dos schemas expostos entra em produção sem políticas para `anon` e `authenticated`; `service_role` nunca é usada no cliente. Funções RPC/Edge Functions validam entrada e autorização no servidor. |
+| C19 | **RLS obrigatória e testada:** nenhuma tabela dos schemas expostos entra em produção sem políticas para `anon` e `authenticated`; `service_role` nunca é usada no cliente. Funções RPC/Edge Functions validam entrada e autorização no servidor. **Exceção:** tabelas internas de autenticação (`codigo_acesso`) usam RLS habilitada **sem políticas** (deny-all) e são acessadas exclusivamente por Edge Functions com `service_role`. |
 
 ## 4. Definition of Done (DoD) — obrigatória para toda task
 
@@ -89,7 +89,7 @@ CONSTITUTION.MD  →  SPEC.md  →  PLAN.md  →  TASK.md  →  código  →  ve
 - **Sincronização:** outbox com idempotência, retry com backoff e detecção de conflito; nada de last-write-wins em estado crítico.
 - **Backup:** PITR/branch do Supabase validado + exportação local testada.
 - **Migrations:** mudanças de schema só via Supabase CLI; nunca alterações manuais no Dashboard em produção.
-- **Segurança:** RLS em todas as tabelas expostas, rate limit no Supabase/Edge Functions, CORS restrito, validação Zod, Supabase Auth (bcrypt), refresh token rotativo, logs com redação e `service_role` nunca no cliente.
+- **Segurança:** RLS em todas as tabelas expostas, rate limit no Supabase/Edge Functions, CORS restrito, validação Zod, **código de acesso hasheado (SHA-256), uso único, validade de 1 ano e limite de tentativas (RN24)**, refresh token rotativo, logs com redação e `service_role` nunca no cliente.
 
 ## 6. Fora da Constituição (decisões reversíveis → `PLAN.md`)
 
@@ -103,3 +103,4 @@ Escolhas de framework, biblioteca, organização de pastas, ORM, detalhes de sch
 | 1.1 | 2026-10-29 | Plataforma trocada para **React Native + Expo** e persistência para **SQLite local**; P8/P9, C12–C15 e critérios de integridade/backup adicionados. | Solicitação do responsável |
 | 1.2 | 2026-10-29 | Arquitetura híbrida: **Neon PostgreSQL** como fonte de verdade, **API Express no Render**, **SQLite/Drizzle** como cache/outbox. P8–P12, C12–C18 e critérios de idempotência, concorrência e segurança adicionados. | Solicitação do responsável |
 | 1.3 | 2026-11-08 | Backend consolidado no **Supabase**: PostgreSQL, Auth, Storage, Realtime e Edge Functions substituem Neon + API Express/Render. RLS, RPC, migrações via Supabase CLI e tipos gerados adicionados aos princípios, restrições, DoD e guardrails. | Solicitação do responsável |
+| 1.4 | 2026-11-19 | **Autenticação sem senha:** C04 reescrita para cadastro com **nome + e-mail** e login por **código de acesso** (validade de 1 ano, uso único, hash SHA-256, limite de tentativas); C19 ganha exceção explícita para `codigo_acesso` (RLS deny-all, acesso só por Edge Function); guardrail de segurança atualizado. | Solicitação do responsável |

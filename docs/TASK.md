@@ -1,8 +1,8 @@
 # ✅ Backlog de Tarefas (TASK)
 
 **Projeto:** App de Agendamento de Serviços de Beleza a Domicílio
-**Versão:** 3.0 · **Última atualização:** 2026-11-09
-**Escopo:** derivado de `docs/SPEC.md` (v1.4) · **Sequência:** `docs/PLAN.md` §6 · **Entrega:** `docs/CONSTITUTION.MD` §4 (DoD)
+**Versão:** 4.0 · **Última atualização:** 2026-11-19
+**Escopo:** derivado de `docs/SPEC.md` (v1.5) · **Sequência:** `docs/PLAN.md` §6 · **Entrega:** `docs/CONSTITUTION.MD` §4 (DoD)
 
 **Legenda de status:** ⬜ pendente · 🟨 em andamento · ✅ concluída · ⛔ bloqueada
 **Formato:** `T-id | RF/RN | descrição | dependência`
@@ -25,8 +25,8 @@
 ## M1 — Conta, Perfil, Deslocamento e Admin
 
 - [x] **T101** | RF01 | Tela de escolha de tipo de conta (Cliente/Profissional) | T002
-- [x] **T102** | RF02, RNF01 | Supabase Auth: signup/login/logout/refresh, trigger `handle_new_user` (usuario + cliente), perfil admin no seed | T003, T004
-- [x] **T103** | RNF01 | App: fluxo de cadastro/login com `supabase-js`, sessão em `expo-secure-store` e refresh automático | T102, T006
+- [ ] **T102** | RF02, RF33, RNF01 | Supabase Auth **sem senha**: conta criada com nome+e-mail, Edge Function envia código de acesso (1 ano), trigger `handle_new_user` (usuario + cliente), perfil admin no seed | T003, T004
+- [ ] **T103** | RF34, RNF01 | App: cadastro (nome+e-mail) e login em 2 etapas (e-mail → código), sessão em `expo-secure-store`, refresh automático e logout | T102, T006
 - [x] **T104** | RF03 | Onboarding de profissional (dados, CPF único, localização de referência, status `pendente`) via PostgREST + RLS | T102
 - [x] **T105** | **RF26, RF27** | Tela **"Meu Atendimento a Domicílio"**: distância máxima + faixas (km → centavos) | T104
 - [x] **T106** | **RN11, RN12** | Validações de faixas (crescentes, sem sobreposição, última = distância máxima) no app e na RPC `salvar_config_deslocamento` | T106
@@ -37,6 +37,12 @@
 - [x] **T111** | RF21 | Admin: listar pendentes, aprovar/reprovar via RPC transacional, auditoria e push | T104, T110
 - [x] **T112** | **RN11, RF03** | Bloqueio: profissional sem faixas aprovadas **não** é publicado na busca | T106
 - [x] **T113** | **RNF09** | Log de auditoria no Supabase para alteração de faixas/distância máxima | T108
+- [ ] **T114** | RN24, RNF01 | Migration `codigo_acesso` (hash, `expira_em` 1 ano, tentativas, revogação) + RLS deny-all + índices + limpeza via `pg_cron` | T004, T005
+- [ ] **T115** | RF33, RN24 | Edge Function `solicitar-codigo-acesso`: valida/normaliza e-mail, cria usuário sem senha, gera código CSPRNG, hash SHA-256+pepper, rate limit/cooldown e e-mail transacional | T114, T102
+- [ ] **T116** | RF34, RN24 | Edge Function `validar-codigo-acesso`: hash em tempo constante, expiração 1 ano, 5 tentativas, uso único e `generateLink` → `token_hash` | T115
+- [ ] **T117** | RF33, RF34, RNF02 | Telas de cadastro e login por código com reenvio/cooldown, mensagens acessíveis e foco/TalkBack | T103, T116
+- [ ] **T118** | RNF01, RN24 | Sessão de até 1 ano: refresh automático, logout, "sair de todos os dispositivos" e revogação em troca de e-mail | T116, T117
+- [ ] **T119** | RN24, RNF15 | Testes de segurança do código: expirado, reuso, 5 tentativas, cooldown, rate limit, anti-enumeração e RLS deny-all | T115, T116
 
 ## M2 — Serviços, Agenda e Portfólio
 
@@ -96,11 +102,11 @@
 
 - [x] **T701** | RNF02, RNF08 | Auditoria de acessibilidade: TalkBack + contraste AA + alvos ≥ 48 dp em **todas** as telas | T306
 - [x] **T702** | RNF15, RN23 | Auditoria de segurança: RLS por perfil, helpers `SECURITY DEFINER`, `service_role` fora do app | T007
-- [x] **T703** | RNF05 | LGPD: consentimento, exportação de dados locais (`exportarDadosLocais`), exclusão em cascata | T102
+- [ ] **T703** | RNF05 | LGPD: consentimento, exportação de dados locais (`exportarDadosLocais`), exclusão em cascata e revogação de códigos/sessões | T102, T114
 - [x] **T705** | RNF09 | Painel de logs de auditoria | T412, T113, T111
 - [x] **T706** | RNF10 | Feedback ≤ 1 s nas ações principais (toasts e estados de carregamento) | T701
 - [x] **T710** | SPEC §12 | Revisão final dos Critérios de Aceite Globais antes do release v1.4 | todos
-- [x] **T712** | RNF01 | Teste de expiração/revogação de sessão e refresh token do Supabase Auth | T102, T504
+- [ ] **T712** | RNF01 | Teste de expiração/revogação de sessão, refresh token, sessão de 1 ano e "sair de todos os dispositivos" do Supabase Auth | T102, T118, T504
 
 ---
 
@@ -119,12 +125,14 @@
 
 ---
 
-## Dependências críticas (trilha da v1.4)
+## Dependências críticas (trilha da v1.5)
 
 ```
+T001 → T003 → T004 → T005 → T114 → T115 → T116 → T119
 T001 → T003 → T004 → T005 → T102 → T104 → T105 → T106 → T112 → T302 → T303 ↘
 T001 → T006 → T401 → T402 ───────────────────────────────────────────────→ T403
 T102 → T103 → T109 ──────────────────────────────────────────────────────↗
+T102 → T103 → T117 → T118 ──────────────────────────────────────────────→ T712
 T403 → T405 → T406 → T408 → T410/T411/T412 → T415 → T501 → T502 → T503 → T710
 T408 → T504 → T505
 T004 → T704 → T711 → T710
@@ -142,3 +150,4 @@ T005 → T702 ──────────────────────
 | 1.2 | 2026-10-29 | **Adaptação para React Native + Expo + SQLite local.** |
 | 2.0 | 2026-10-29 | **Reescrita para arquitetura híbrida:** monorepo Expo/API/shared; Neon + Drizzle + Express no Render; auth server-side; uploads Cloudinary/bucket privado; sync outbox (RF32); push Expo; jobs de expiração no servidor; testes de concorrência/idempotência, k6 e restore. M0–M7 com trilha crítica atualizada. |
 | 3.0 | 2026-11-09 | **Implementação completa concluída:** app único Expo + Supabase, todas as telas, RPCs, migrações 0001–0009 aplicadas, seed, testes de precificação, `tsc`, `vitest`, `expo-doctor` e `expo export` verdes. |
+| 4.0 | 2026-11-19 | **Autenticação sem senha (SPEC v1.5):** T102/T103 **reabertas**; adicionadas **T114–T119** (pendentes) para tabela `codigo_acesso`, Edge Functions de solicitação/validação, telas, sessão de 1 ano e testes de segurança; T703/T712 reabertas; trilha crítica revista. |
