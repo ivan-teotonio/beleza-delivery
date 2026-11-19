@@ -23,7 +23,7 @@ export function EmptyState({
   return (
     <View style={styles.container}>
       <View style={styles.icone}>
-        <Ionicons name={icon} size={30} color={colors.primary} />
+        <Ionicons name={icon} size={30} color={colors.accentDark} />
       </View>
       <AppText variant="subtitle" center>
         {title}
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,

@@ -9,7 +9,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 import { colors, spacing } from '../theme';
 import { OfflineBanner } from './OfflineBanner';
 
@@ -42,6 +42,7 @@ export function Screen({
   footer,
   keyboard = false,
 }: ScreenProps) {
+  const insets = useSafeAreaInsets();
   const inner = (
     <View style={[styles.flex, padded && styles.padded, contentContainerStyle]}>{children}</View>
   );
@@ -75,7 +76,16 @@ export function Screen({
         <OfflineBanner inline />
       </View>
       {body}
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
+      {footer ? (
+        <View
+          style={[
+            styles.footer,
+            { paddingBottom: Math.max(spacing.md, insets.bottom + spacing.sm) },
+          ]}
+        >
+          {footer}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 

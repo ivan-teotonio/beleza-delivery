@@ -33,7 +33,7 @@ export function Stars({ nota, onChange, size = 20, showValue = false, total }: S
           <Ionicons
             name={preenchida ? 'star' : 'star-outline'}
             size={size}
-            color={preenchida ? '#B45309' : colors.borderStrong}
+            color={preenchida ? colors.accentDark : colors.borderStrong}
           />
         );
         if (!interativo) {
