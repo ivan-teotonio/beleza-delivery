@@ -25,8 +25,8 @@
 ## M1 — Conta, Perfil, Deslocamento e Admin
 
 - [x] **T101** | RF01 | Tela de escolha de tipo de conta (Cliente/Profissional) | T002
-- [ ] **T102** | RF02, RF33, RNF01 | Supabase Auth **sem senha**: conta criada com nome+e-mail, Edge Function envia código de acesso (1 ano), trigger `handle_new_user` (usuario + cliente), perfil admin no seed | T003, T004
-- [ ] **T103** | RF34, RNF01 | App: cadastro (nome+e-mail) e login em 2 etapas (e-mail → código), sessão em `expo-secure-store`, refresh automático e logout | T102, T006
+- [x] **T102** | RF02, RF33, RNF01 | Supabase Auth **sem senha**: conta criada com nome+e-mail, Edge Function envia código de acesso (1 ano), trigger `handle_new_user` (usuario + cliente), perfil admin no seed | T003, T004
+- [x] **T103** | RF34, RNF01 | App: cadastro (nome+e-mail) e login em 2 etapas (e-mail → código), sessão em `expo-secure-store`, refresh automático e logout | T102, T006
 - [x] **T104** | RF03 | Onboarding de profissional (dados, CPF único, localização de referência, status `pendente`) via PostgREST + RLS | T102
 - [x] **T105** | **RF26, RF27** | Tela **"Meu Atendimento a Domicílio"**: distância máxima + faixas (km → centavos) | T104
 - [x] **T106** | **RN11, RN12** | Validações de faixas (crescentes, sem sobreposição, última = distância máxima) no app e na RPC `salvar_config_deslocamento` | T106
@@ -37,11 +37,11 @@
 - [x] **T111** | RF21 | Admin: listar pendentes, aprovar/reprovar via RPC transacional, auditoria e push | T104, T110
 - [x] **T112** | **RN11, RF03** | Bloqueio: profissional sem faixas aprovadas **não** é publicado na busca | T106
 - [x] **T113** | **RNF09** | Log de auditoria no Supabase para alteração de faixas/distância máxima | T108
-- [ ] **T114** | RN24, RNF01 | Migration `codigo_acesso` (hash, `expira_em` 1 ano, tentativas, revogação) + RLS deny-all + índices + limpeza via `pg_cron` | T004, T005
-- [ ] **T115** | RF33, RN24 | Edge Function `solicitar-codigo-acesso`: valida/normaliza e-mail, cria usuário sem senha, gera código CSPRNG, hash SHA-256+pepper, rate limit/cooldown e e-mail transacional | T114, T102
-- [ ] **T116** | RF34, RN24 | Edge Function `validar-codigo-acesso`: hash em tempo constante, expiração 1 ano, 5 tentativas, uso único e `generateLink` → `token_hash` | T115
-- [ ] **T117** | RF33, RF34, RNF02 | Telas de cadastro e login por código com reenvio/cooldown, mensagens acessíveis e foco/TalkBack | T103, T116
-- [ ] **T118** | RNF01, RN24 | Sessão de até 1 ano: refresh automático, logout, "sair de todos os dispositivos" e revogação em troca de e-mail | T116, T117
+- [x] **T114** | RN24, RNF01 | Migration `codigo_acesso` (hash, `expira_em` 1 ano, tentativas, revogação) + RLS deny-all + índices + limpeza via `pg_cron` | T004, T005
+- [x] **T115** | RF33, RN24 | Edge Function `solicitar-codigo-acesso`: valida/normaliza e-mail, cria usuário sem senha, gera código CSPRNG, hash SHA-256+pepper, rate limit/cooldown e e-mail transacional | T114, T102
+- [x] **T116** | RF34, RN24 | Edge Function `validar-codigo-acesso`: hash em tempo constante, expiração 1 ano, 5 tentativas, uso único e `generateLink` → `token_hash` | T115
+- [x] **T117** | RF33, RF34, RNF02 | Telas de cadastro e login por código com reenvio/cooldown, mensagens acessíveis e foco/TalkBack | T103, T116
+- [x] **T118** | RNF01, RN24 | Sessão de até 1 ano: refresh automático, logout, "sair de todos os dispositivos" e revogação em troca de e-mail. *Nota:* o limite rígido de 1 ano (`sessions_timebox`) exige plano Pro; no plano atual o refresh rotativo mantém a sessão ativa por mais de 1 ano. A revogação em troca de e-mail é feita pelo `mailer_secure_email_change` do Supabase. | T116, T117
 - [ ] **T119** | RN24, RNF15 | Testes de segurança do código: expirado, reuso, 5 tentativas, cooldown, rate limit, anti-enumeração e RLS deny-all | T115, T116
 
 ## M2 — Serviços, Agenda e Portfólio
