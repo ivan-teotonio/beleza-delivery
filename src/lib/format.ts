@@ -95,7 +95,6 @@ const MONTHS = [
 /** Retorna a data (YYYY-MM-DD) de hoje no fuso local do dispositivo. */
 export function hojeSP(): string {
   const d = new Date();
-  console.log('[DEBUG hojeSP] new Date():', d.toISOString(), 'getDate():', d.getDate(), 'getMonth():', d.getMonth());
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
