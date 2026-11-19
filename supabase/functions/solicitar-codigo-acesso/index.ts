@@ -8,6 +8,8 @@ const DEMO = Deno.env.get('DEMO_MODE') === 'true';
 const RESEND_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
 const EMAIL_FROM = Deno.env.get('EMAIL_FROM') ?? 'Beleza a Domicilio <onboarding@resend.dev>';
 const RESPOSTA_GENERICA = { ok: true, reenviar_em: 60 };
+/** DEMO_MODE só vale para estas contas; qualquer outro e-mail exige provedor real. */
+const DEMO_EMAILS = ['ana.cliente@beleza.app', 'mariana@beleza.app', 'admin@beleza.app'];
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -80,8 +82,8 @@ async function rest(caminho: string, init: RequestInit = {}): Promise<{ resposta
   return { resposta, corpo };
 }
 
-async function enviarEmail(email: string, codigo: string): Promise<boolean> {
-  if (DEMO) return true;
+async function enviarEmail(email: string, codigo: string, demoAtivo: boolean): Promise<boolean> {
+  if (demoAtivo) return true;
   if (!RESEND_KEY) return false;
   const resposta = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -118,6 +120,7 @@ Deno.serve(async (req) => {
   if (tipo !== 'cliente' && tipo !== 'profissional') return erro('Tipo de conta inválido.');
 
   const emailNormalizado = email.trim().toLowerCase();
+  const demoAtivo = DEMO && DEMO_EMAILS.includes(emailNormalizado);
   const nomeInformado = typeof nome === 'string' ? nome.trim() : '';
   // Login com e-mail novo também cria a conta (anti-enumeração): deriva um nome
   // provisório da parte local do e-mail; o perfil é completado depois.
@@ -181,7 +184,7 @@ Deno.serve(async (req) => {
     { method: 'PATCH', body: JSON.stringify({ revogado_em: agora }) },
   );
 
-  const codigo = DEMO ? '000000' : gerarCodigo();
+  const codigo = demoAtivo ? '000000' : gerarCodigo();
   const codigoHash = await hashCodigo(codigo);
   const expiraEm = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -200,10 +203,10 @@ Deno.serve(async (req) => {
     return resposta(RESPOSTA_GENERICA);
   }
 
-  if (!await enviarEmail(emailNormalizado, codigo)) {
+  if (!await enviarEmail(emailNormalizado, codigo, demoAtivo)) {
     console.error('Serviço de e-mail indisponível ou não configurado.');
     return erro('Não foi possível enviar o e-mail. Tente novamente mais tarde.', 503);
   }
 
-  return resposta(DEMO ? { ...RESPOSTA_GENERICA, codigo_demo: codigo } : RESPOSTA_GENERICA);
+  return resposta(demoAtivo ? { ...RESPOSTA_GENERICA, codigo_demo: codigo } : RESPOSTA_GENERICA);
 });
